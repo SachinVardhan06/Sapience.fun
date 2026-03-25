@@ -176,7 +176,7 @@ function WelcomePage() {
           </a>
           <a
             className="text-white/45 transition-colors hover:text-white/80"
-            href="https://discord.gg/sapiencedotfun"
+            href="https://discord.gg/DfrB5hnb8f"
             target="_blank"
             rel="noreferrer"
             aria-label="Discord"
@@ -189,7 +189,7 @@ function WelcomePage() {
           Need help?{' '}
           <a
             className="text-white/60 underline decoration-white/30 underline-offset-2 transition-colors hover:text-white/85"
-            href="https://discord.gg/sapiencedotfun"
+            href="https://discord.gg/DfrB5hnb8f"
             target="_blank"
             rel="noreferrer"
           >
