@@ -137,9 +137,9 @@ function WelcomePage() {
         </div>
 
         <h1 className="m-0 text-[clamp(48px,9vw,86px)] leading-[0.9] font-extrabold tracking-[-1.3px] text-[#f6fffa]">
-          <span className="netlifypixel">Coming </span>
+          <span className="netlifypixel">Welcome to </span>
           <span className="netlifypixel text-[#13f227] [text-shadow:0_0_30px_rgba(19,242,39,0.9),0_0_50px_rgba(19,242,39,0.7),0_0_70px_rgba(19,242,39,0.5)]">
-            Soon
+            Sapience
           </span>
         </h1>
 
