@@ -1,0 +1,105 @@
+{
+  "wallets": {
+    "0xabc123": {
+      "address": "0xabc123",
+      "balance": 1000,
+      "totalPredictions": 5,
+      "totalStaked": 50,
+      "totalRewards": 50,
+      "createdAt": "2026-03-25T04:49:09.802Z",
+      "updatedAt": "2026-03-25T04:49:09.802Z"
+    },
+    "0x207745a15e941b76454c9326c8e77f41d5961f8c": {
+      "address": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "balance": 1000,
+      "totalPredictions": 0,
+      "totalStaked": 0,
+      "totalRewards": 0,
+      "createdAt": "2026-03-25T05:02:33.641Z",
+      "updatedAt": "2026-03-25T07:44:49.664Z"
+    }
+  },
+  "predictions": [
+    {
+      "id": "1774422803631-0-fa3e4e82",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "nChh5Pzzsy",
+      "marketTitle": "Will Trump finish his second term?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-25T07:13:23.657Z"
+    },
+    {
+      "id": "1774422870737-0-6cef0fd9",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "nyyupACZLR",
+      "marketTitle": "[ACX 2026] Will Benjamin Netanyahu cease to be Prime Minister of Israel during 2026?",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-25T07:14:30.751Z"
+    },
+    {
+      "id": "1774423687338-0-72973d99",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "ECme3AJochGsld2MklSG",
+      "marketTitle": "In 2028, will Gary Marcus still be able to get LLMs to make egregious errors?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-25T07:28:07.347Z"
+    },
+    {
+      "id": "1774424007111-0-faf37151",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "2tEzuphRlP",
+      "marketTitle": "Will AI be capable of producing an Annals-quality math paper for $100k by March 2030?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-25T07:33:27.133Z"
+    },
+    {
+      "id": "1774424007111-1-e2c74c40",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "zIjFL4cxLmRUbeRKdgCh",
+      "marketTitle": "🇧🇷 President in Jan 2027 is Lula, or whoever he endorses / Lula ou seu indicado é presidente em janeiro de 2027",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-25T07:33:27.137Z"
+    },
+    {
+      "id": "1774424007111-2-d8042a1c",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "A319ydGB1B7f4PMOROL3",
+      "marketTitle": "In early 2028, will an AI be able to generate a full high-quality movie to a prompt?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-25T07:33:27.140Z"
+    },
+    {
+      "id": "1774424007111-3-e249dc25",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "ECme3AJochGsld2MklSG",
+      "marketTitle": "In 2028, will Gary Marcus still be able to get LLMs to make egregious errors?",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-25T07:33:27.144Z"
+    },
+    {
+      "id": "1774424007111-4-02374bef",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "wENpa5mETtrCnBYJKl5t",
+      "marketTitle": "Will China launch a full-scale invasion of Taiwan before 2030?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-25T07:33:27.148Z"
+    },
+    {
+      "id": "1774424007111-5-df5b687f",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "nChh5Pzzsy",
+      "marketTitle": "Will Trump finish his second term?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-25T07:33:27.153Z"
+    }
+  ]
+}

@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import bgVideo from '../../assets/sapience.fun.mp4'
 import sapienceLogo from '../../assets/sapiencelogo.jpeg'
+import { useWalletAuth } from '../../context/walletAuth'
 
 function AudioIcon({ muted }) {
   if (muted) {
@@ -52,10 +54,31 @@ function DiscordIcon() {
 }
 
 function CommingSoon() {
+  const navigate = useNavigate()
+  const { connectWallet, isConnecting, isConnected, authError, clearAuthError } = useWalletAuth()
   const [muted, setMuted] = useState(true)
 
+  useEffect(() => {
+    if (isConnected) {
+      navigate('/prediction', { replace: true })
+    }
+  }, [isConnected, navigate])
+
+  const handleLoginFromComingSoon = async () => {
+    if (isConnecting) return
+    clearAuthError()
+    await connectWallet()
+  }
+
   return (
-    <main className="relative h-dvh overflow-hidden bg-black text-[#d9e5df] antialiased">
+    <main
+      className="relative overflow-hidden bg-black text-[#d9e5df] antialiased"
+      style={{
+        boxSizing: 'border-box',
+        height: '100dvh',
+        paddingTop: 'var(--beta-banner-height, 0px)',
+      }}
+    >
       <div className="absolute inset-0 z-0">
         <video
           className="h-full w-full object-cover saturate-50 brightness-[0.95] contrast-[1.03]"
@@ -126,13 +149,19 @@ function CommingSoon() {
         </p>
 
         <div className="w-full max-w-md">
-          <button className="group relative block h-[48px] w-full cursor-pointer border-none bg-transparent p-0 text-base sm:h-[52px] sm:text-lg">
+          <button
+            type="button"
+            disabled={isConnecting}
+            onClick={handleLoginFromComingSoon}
+            className="group relative block h-[48px] w-full cursor-pointer border-none bg-transparent p-0 text-base sm:h-[52px] sm:text-lg"
+          >
             <span className="absolute left-0 top-0 h-full w-full translate-y-[2px] rounded-xl bg-black/30 transition-transform duration-300 group-hover:translate-y-[4px] group-active:translate-y-px" />
             <span className="absolute left-0 top-0 h-full w-full rounded-xl bg-[#0da91f]" />
             <span className="relative flex h-full -translate-y-[4px] items-center justify-center rounded-xl bg-[#13f227] px-3 font-bold text-[#08240e] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform duration-300 group-hover:-translate-y-[6px] group-active:-translate-y-[2px]">
-              Connect Wallet
+              {isConnecting ? 'Connecting...' : 'Login with MetaMask'}
             </span>
           </button>
+          {authError ? <p className="mt-3 text-center text-sm text-rose-300">{authError}</p> : null}
         </div>
 
         <div className="mt-4 flex items-center justify-center gap-3 sm:mt-8">

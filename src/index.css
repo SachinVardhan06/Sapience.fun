@@ -1,5 +1,150 @@
 @import "tailwindcss";
 
+/* ── Theme tokens ─────────────────────────────────────────────────────────── */
+:root, [data-theme="dark"] {
+  --bg-page:       #030b04;
+  --bg-glass:      rgba(0,0,0,0.50);
+  --bg-glass2:     rgba(0,0,0,0.55);
+  --panel-bg:      rgba(0,0,0,0.60);
+  --input-bg:      rgba(0,0,0,0.60);
+  --border-g:      rgba(19,242,39,0.15);
+  --border-g2:     rgba(19,242,39,0.18);
+  --border-subtle: rgba(19,242,39,0.12);
+  --border-row:    rgba(19,242,39,0.07);
+  --text-heading:  #f6fffa;
+  --text-body:     #d9e5df;
+  --text-secondary:rgba(255,255,255,0.45);
+  --text-muted:    rgba(255,255,255,0.28);
+  --text-faint:    rgba(255,255,255,0.18);
+  --text-dim:      rgba(255,255,255,0.35);
+  --row-hover:     rgba(255,255,255,0.025);
+  --progress-bg:   rgba(255,255,255,0.08);
+  --scanline:      rgba(255,255,255,0.08);
+  --vignette:      rgba(0,0,0,0.72);
+  --glow-radial:   rgba(19,242,39,0.09);
+  --nav-bg:        rgba(0,0,0,0.35);
+  --nav-glass-bg:  rgba(3, 14, 6, 0.28);
+  --icon-stroke:   rgba(255,255,255,0.3);
+  --fade-top:      rgba(0,0,0,0.45);
+  /* Accent (neon on dark) */
+  --accent:              #13f227;
+  --accent-text:         #13f227;
+  --accent-muted:        rgba(19,242,39,0.5);
+  --accent-label:        rgba(19,242,39,0.45);
+  --accent-faint:        rgba(19,242,39,0.35);
+  --accent-empty:        rgba(19,242,39,0.22);
+  --accent-surface:      rgba(19,242,39,0.07);
+  --accent-surface-strong:rgba(19,242,39,0.15);
+  --accent-panel:        rgba(19,242,39,0.06);
+  --accent-panel-border: rgba(19,242,39,0.18);
+  --glow-heading:        0 0 30px rgba(19,242,39,0.9), 0 0 60px rgba(19,242,39,0.5);
+  --glow-title:          0 0 18px rgba(19,242,39,0.7), 0 0 35px rgba(19,242,39,0.4);
+  --glow-small:          0 0 12px rgba(19,242,39,0.6);
+  --glow-balance:        0 0 10px rgba(19,242,39,0.6);
+  --glow-forecast:       0 0 10px rgba(19,242,39,0.6);
+  --chip-bg-top:         #171717;
+  --chip-bg-bottom:      #0c0c0c;
+  --chip-inset:          rgba(255,255,255,0.05);
+  --yes-inactive:        rgba(19,242,39,0.5);
+  --profile-banner:      linear-gradient(135deg, rgba(19,242,39,0.12) 0%, rgba(0,0,0,0) 60%);
+  --tab-active-bg:       rgba(19,242,39,0.18);
+  --btn-depth:           rgba(0,0,0,0.32);
+  --nav-elev:            0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(19, 242, 39, 0.12);
+  --nav-toggle-bg:       rgba(19,242,39,0.08);
+  --nav-toggle-fg:       rgba(255,255,255,0.55);
+  --nav-toggle-hover-bg: rgba(19,242,39,0.18);
+  --nav-toggle-hover-fg: #13f227;
+  /* Beta banner */
+  --beta-banner-bg:          rgba(19, 242, 39, 0.12);
+  --beta-banner-border:      rgba(19, 242, 39, 0.35);
+  --beta-banner-text:        var(--text-body);
+  --beta-banner-chip-bg:     rgba(19, 242, 39, 0.22);
+  --beta-banner-chip-text:   var(--accent-text);
+  --beta-banner-chip-border: rgba(19, 242, 39, 0.45);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  /* Cool mint paper — high contrast, easy to read */
+  --bg-page:       #e4ede6;
+  --bg-glass:      #ffffff;
+  --bg-glass2:     #ffffff;
+  --panel-bg:      #f8faf9;
+  --input-bg:      #ffffff;
+  --border-g:      rgba(15, 81, 50, 0.14);
+  --border-g2:     rgba(15, 81, 50, 0.2);
+  --border-subtle: rgba(15, 81, 50, 0.1);
+  --border-row:    rgba(15, 81, 50, 0.08);
+  --text-heading:  #0c1a12;
+  --text-body:     #1e3d2a;
+  --text-secondary:#3d5a47;
+  --text-muted:    #5a7162;
+  --text-faint:    #7a8f82;
+  --text-dim:      #4d6356;
+  --row-hover:     rgba(22, 101, 52, 0.07);
+  --progress-bg:   rgba(15, 81, 50, 0.1);
+  --scanline:      rgba(15, 81, 50, 0.04);
+  --vignette:      rgba(228, 237, 230, 0.65);
+  --glow-radial:   rgba(34, 197, 94, 0.14);
+  --nav-bg:        rgba(255, 255, 255, 0.92);
+  --nav-glass-bg:  rgba(255, 255, 255, 0.4);
+  --icon-stroke:   rgba(30, 61, 42, 0.45);
+  --fade-top:      rgba(255, 255, 255, 0.92);
+  /* Forest green accents — readable on white (no neon body text) */
+  --accent:              #16a34a;
+  --accent-text:         #166534;
+  --accent-muted:        #218358;
+  --accent-label:        rgba(22, 101, 52, 0.78);
+  --accent-faint:        rgba(22, 101, 52, 0.55);
+  --accent-empty:        rgba(22, 101, 52, 0.48);
+  --accent-surface:      rgba(22, 101, 52, 0.09);
+  --accent-surface-strong:rgba(22, 101, 52, 0.16);
+  --accent-panel:        rgba(22, 101, 52, 0.06);
+  --accent-panel-border: rgba(22, 101, 52, 0.2);
+  --glow-heading:        0 2px 16px rgba(22, 101, 52, 0.12);
+  --glow-title:          0 1px 8px rgba(22, 101, 52, 0.1);
+  --glow-small:          none;
+  --glow-balance:        none;
+  --glow-forecast:       none;
+  --chip-bg-top:         #f0fdf4;
+  --chip-bg-bottom:      #dcfce7;
+  --chip-inset:          rgba(255,255,255,0.6);
+  --yes-inactive:        rgba(34, 197, 94, 0.55);
+  --profile-banner:      linear-gradient(135deg, rgba(34, 197, 94, 0.14) 0%, rgba(255,255,255,0) 55%);
+  --tab-active-bg:       rgba(22, 101, 52, 0.12);
+  --btn-depth:           rgba(22, 101, 52, 0.12);
+  --nav-elev:            0 10px 40px rgba(12, 40, 28, 0.08), 0 0 0 1px rgba(22, 101, 52, 0.1);
+  --nav-toggle-bg:       rgba(22, 101, 52, 0.1);
+  --nav-toggle-fg:       rgba(30, 61, 42, 0.65);
+  --nav-toggle-hover-bg: rgba(22, 101, 52, 0.18);
+  --nav-toggle-hover-fg: #166534;
+  /* Beta banner (light) */
+  --beta-banner-bg:          rgba(22, 101, 52, 0.1);
+  --beta-banner-border:      rgba(22, 101, 52, 0.22);
+  --beta-banner-text:        var(--text-body);
+  --beta-banner-chip-bg:     rgba(22, 101, 52, 0.14);
+  --beta-banner-chip-text:   var(--accent-text);
+  --beta-banner-chip-border: rgba(22, 101, 52, 0.28);
+}
+
+/* Light-mode overrides for Tailwind white-opacity classes */
+[data-theme="light"] .text-white\/50,
+[data-theme="light"] .text-white\/45,
+[data-theme="light"] .text-white\/40 { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .text-white\/35,
+[data-theme="light"] .text-white\/30,
+[data-theme="light"] .text-white\/25 { color: var(--text-muted) !important; }
+
+[data-theme="light"] .text-white\/20,
+[data-theme="light"] .text-white\/15 { color: var(--text-faint) !important; }
+
+[data-theme="light"] .placeholder\:text-white\/25::placeholder { color: var(--text-muted) !important; }
+
 * {
   box-sizing: border-box;
 }
@@ -12,11 +157,20 @@ body,
   height: 100%;
 }
 
+:root {
+  --beta-banner-height: 0px;
+}
+
+html.beta-banner-on {
+  --beta-banner-height: 2.25rem;
+}
+
 html,
 body {
   overflow: hidden;
   overscroll-behavior: none;
-  background: #000;
+  background: var(--bg-page);
+  color: var(--text-body);
   font-family: "Satoshi", sans-serif;
 }
 
@@ -24,4 +178,54 @@ body {
   font-family: "NetlifyPixel", "Pixelify Sans", sans-serif;
   font-optical-sizing: auto;
   font-style: normal;
+}
+
+/* Native inputs / selects follow the active theme */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.9;
+}
+
+/* Navbar link row: hide scrollbar but allow horizontal scroll on narrow screens */
+.nav-links-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.nav-links-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Marketplace: inertial scroll + smooth programmatic scroll */
+.market-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-scroll {
+    scroll-behavior: auto;
+  }
+}
+
+@keyframes market-skeleton {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+.market-skeleton-pulse {
+  animation: market-skeleton 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-skeleton-pulse {
+    animation: none;
+    opacity: 0.5;
+  }
 }

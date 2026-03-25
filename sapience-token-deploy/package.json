@@ -1,0 +1,29 @@
+{
+  "name": "sapience-token-deploy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:tempo": "hardhat run scripts/deploy.js --network tempo",
+    "deploy:market:tempo": "hardhat run scripts/deployMarket.js --network tempo",
+    "check:balance": "hardhat run scripts/checkBalance.js --network tempo",
+    "deploy:tempo:testnet": "hardhat run scripts/deploy.js --network tempoTestnet",
+    "deploy:market:testnet": "hardhat run scripts/deployMarket.js --network tempoTestnet",
+    "fund:market:testnet": "hardhat run scripts/fundMarket.js --network tempoTestnet",
+    "check:balance:testnet": "hardhat run scripts/checkBalance.js --network tempoTestnet",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.2",
+    "dotenv": "^17.3.1",
+    "hardhat": "^2.28.6"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  }
+}
