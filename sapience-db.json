@@ -12,11 +12,11 @@
     "0x207745a15e941b76454c9326c8e77f41d5961f8c": {
       "address": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
       "balance": 1000,
-      "totalPredictions": 0,
-      "totalStaked": 0,
-      "totalRewards": 0,
+      "totalPredictions": 2,
+      "totalStaked": 20,
+      "totalRewards": 20,
       "createdAt": "2026-03-25T05:02:33.641Z",
-      "updatedAt": "2026-03-25T14:14:52.831Z"
+      "updatedAt": "2026-03-25T14:56:10.961Z"
     }
   },
   "predictions": [
@@ -100,6 +100,24 @@
       "side": "YES",
       "points": 10,
       "createdAt": "2026-03-25T07:33:27.153Z"
+    },
+    {
+      "id": "1774450570948-0-9cb32a65",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "A319ydGB1B7f4PMOROL3",
+      "marketTitle": "In early 2028, will an AI be able to generate a full high-quality movie to a prompt?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-25T14:56:10.971Z"
+    },
+    {
+      "id": "1774450570948-1-4b2c1f6e",
+      "wallet": "0x207745a15e941b76454c9326c8e77f41d5961f8c",
+      "marketId": "barjfHPUpHGNKSfhBhJx",
+      "marketTitle": "In 2028, will an AI be able to play randomly selected computer games at human level without getting to practice?",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-25T14:56:10.976Z"
     }
   ]
 }

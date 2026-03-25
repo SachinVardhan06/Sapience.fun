@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import AccessCodeModal from '../../components/AccessCodeModal'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TradeNavbar from '../../components/tradeNavbar'
 import { useWalletAuth } from '../../context/walletAuth'
-import { grantWalletAccess, hasWalletAccess } from '../../utils/accessGate'
 import sapienceLogo from '../../assets/sapiencelogo.jpeg'
 import { fetchWallet } from '../../utils/graphqlClient'
 import {
@@ -95,8 +93,6 @@ function catColor(cat) {
 export default function PredictionMarket() {
   const { walletShort, walletAddress } = useWalletAuth()
 
-  const [accessOk, setAccessOk] = useState(false)
-
   const [markets,      setMarkets]      = useState(FALLBACK)
   const [loading,      setLoading]      = useState(true)
   const [loadingMore,  setLoadingMore]  = useState(false)
@@ -125,14 +121,6 @@ export default function PredictionMarket() {
     try { const r = localStorage.getItem(PREDICTIONS_KEY); return r ? JSON.parse(r) : [] }
     catch { return [] }
   })
-
-  useLayoutEffect(() => {
-    if (!walletAddress) {
-      setAccessOk(false)
-      return
-    }
-    setAccessOk(hasWalletAccess(walletAddress))
-  }, [walletAddress])
 
   useEffect(() => {
     if (!walletAddress) {
@@ -237,11 +225,6 @@ export default function PredictionMarket() {
     observer.observe(el)
     return () => observer.disconnect()
   }, [loadMore, loading, hasMore, filteredRows.length])
-
-  const handleAccessVerified = useCallback(() => {
-    if (walletAddress) grantWalletAccess(walletAddress)
-    setAccessOk(true)
-  }, [walletAddress])
 
   const pick = (marketId, side, title) => {
     setSelections(prev => {
@@ -854,12 +837,6 @@ export default function PredictionMarket() {
         </div>
         </div>
       </div>
-
-      <AccessCodeModal
-        open={Boolean(walletAddress && !accessOk)}
-        walletShort={walletShort}
-        onVerified={handleAccessVerified}
-      />
     </main>
   )
 }
