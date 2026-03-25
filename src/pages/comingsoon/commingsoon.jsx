@@ -53,7 +53,7 @@ function DiscordIcon() {
   )
 }
 
-function CommingSoon() {
+function WelcomePage() {
   const navigate = useNavigate()
   const { connectWallet, isConnecting, isConnected, authError, clearAuthError } = useWalletAuth()
   const [muted, setMuted] = useState(true)
@@ -64,7 +64,7 @@ function CommingSoon() {
     }
   }, [isConnected, navigate])
 
-  const handleLoginFromComingSoon = async () => {
+  const handleConnectWallet = async () => {
     if (isConnecting) return
     clearAuthError()
     await connectWallet()
@@ -137,22 +137,22 @@ function CommingSoon() {
         </div>
 
         <h1 className="m-0 text-[clamp(48px,9vw,86px)] leading-[0.9] font-extrabold tracking-[-1.3px] text-[#f6fffa]">
-          <span className="netlifypixel">Welcome to</span>
+          <span className="netlifypixel">Coming </span>
           <span className="netlifypixel text-[#13f227] [text-shadow:0_0_30px_rgba(19,242,39,0.9),0_0_50px_rgba(19,242,39,0.7),0_0_70px_rgba(19,242,39,0.5)]">
-            Sapience
+            Soon
           </span>
         </h1>
 
         <p className="mx-auto mb-5 mt-3 max-w-md text-sm leading-[1.45] text-white/60 sm:mb-8 sm:text-base">
-          The platform is currently closed. Check back soon or follow us for
-          updates on when access opens up.
+          Connect your wallet to explore markets, place predictions, and climb the leaderboard.
+          We&apos;re glad you&apos;re here.
         </p>
 
         <div className="w-full max-w-md">
           <button
             type="button"
             disabled={isConnecting}
-            onClick={handleLoginFromComingSoon}
+            onClick={handleConnectWallet}
             className="group relative block h-[48px] w-full cursor-pointer border-none bg-transparent p-0 text-base sm:h-[52px] sm:text-lg"
           >
             <span className="absolute left-0 top-0 h-full w-full translate-y-[2px] rounded-xl bg-black/30 transition-transform duration-300 group-hover:translate-y-[4px] group-active:translate-y-px" />
@@ -201,4 +201,4 @@ function CommingSoon() {
   )
 }
 
-export default CommingSoon
+export default WelcomePage

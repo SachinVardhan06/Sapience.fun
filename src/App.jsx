@@ -1,7 +1,7 @@
-import CommingSoon from './pages/comingsoon/commingsoon'
+import WelcomePage from './pages/comingsoon/commingsoon'
 
 function App() {
-  return <CommingSoon />
+  return <WelcomePage />
 }
 
 export default App
