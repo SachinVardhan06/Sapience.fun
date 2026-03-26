@@ -46,30 +46,33 @@ function TradeNavbar() {
       <div className="grid min-h-14 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 py-2 sm:min-h-16 sm:gap-3 sm:px-6 sm:py-2.5">
       {/* Logo */}
       <p
-        className="netlifypixel shrink-0 text-[17px] font-black leading-none tracking-[1px] sm:text-[22px]"
+        className="netlifypixel shrink-0 select-none text-[clamp(15px,3.8vw,20px)] font-black leading-none tracking-[0.14em] sm:text-[21px] sm:tracking-[0.16em]"
         style={{ textShadow: isDark ? '0 0 15px rgba(0,0,0,0.5)' : 'none' }}
       >
         <span style={{ color: 'var(--text-heading)' }}>SAPIENCE.</span>
-        <span style={{ color: 'var(--accent)', textShadow: 'var(--glow-title)' }}>
+        <span className="pl-[0.06em]" style={{ color: 'var(--accent)', textShadow: 'var(--glow-title)' }}>
           FUN
         </span>
       </p>
 
       {/* Nav links — scroll horizontally on narrow viewports instead of clipping */}
-      <div className="nav-links-scroll flex min-w-0 items-center justify-center gap-0.5 overflow-x-auto sm:gap-1">
+      <div className="nav-links-scroll flex min-w-0 items-center justify-center gap-0.5 overflow-x-auto sm:gap-0.5">
         {[
           { to: '/prediction', label: 'Markets' },
+          { to: '/btc-5m', label: 'BTC 5m' },
           { to: '/leaderboard', label: 'Leaderboard' },
           { to: '/profile', label: 'Profile' },
         ].map(({ to, label }) => (
           <NavLink
             key={to}
             to={to}
-            className="shrink-0 whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-[12px] font-medium transition-colors hover:opacity-80 sm:px-5 sm:py-3 sm:text-[14px]"
+            className="shrink-0 whitespace-nowrap rounded-md border-b-2 border-transparent px-3 py-2 text-[13px] font-semibold leading-snug tracking-[0.02em] antialiased transition-[color,opacity,border-color,background] duration-150 hover:opacity-90 sm:px-4 sm:py-2.5 sm:text-[14px]"
             style={({ isActive }) => ({
-              color: isActive ? 'var(--accent-text)' : 'var(--text-dim)',
+              color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
+              fontWeight: isActive ? 700 : 600,
               textShadow: isActive ? 'var(--glow-small)' : 'none',
               borderBottomColor: isActive ? 'var(--accent)' : 'transparent',
+              background: isActive ? 'var(--accent-surface)' : 'transparent',
             })}
           >
             {label}
@@ -78,7 +81,7 @@ function TradeNavbar() {
       </div>
 
       {/* Theme + wallet */}
-      <div className="flex shrink-0 items-center justify-end gap-1.5 text-[12px] sm:gap-3 sm:text-[14px]">
+      <div className="flex shrink-0 items-center justify-end gap-1.5 text-[12px] font-medium leading-snug tracking-[0.01em] antialiased sm:gap-3 sm:text-[13px]">
 
         <button
           type="button"
@@ -108,46 +111,57 @@ function TradeNavbar() {
 
         {isConnected ? (
           <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-            <span className="hidden min-w-0 items-center gap-1.5 sm:flex" style={{ color: 'var(--text-dim)' }}>
+            <span className="hidden min-w-0 items-center gap-1.5 sm:flex" style={{ color: 'var(--text-secondary)' }}>
               <span
                 className="h-1.5 w-1.5 shrink-0 rounded-full"
                 style={{ background: 'var(--accent)', boxShadow: '0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)' }}
               />
-              <span className="max-w-[88px] truncate sm:max-w-none">{walletShort}</span>
+              <span className="max-w-[88px] truncate font-mono text-[12px] font-medium tabular-nums tracking-tight sm:max-w-[140px] sm:text-[13px]">
+                {walletShort}
+              </span>
             </span>
             <span className="sm:hidden" style={{ color: 'var(--border-g)' }} aria-hidden>·</span>
             <button
               type="button"
               onClick={() => switchWallet()}
-              className="shrink-0 transition"
-              style={{ color: 'var(--text-dim)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.75' }}
+              className="shrink-0 rounded-md px-1 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition sm:text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--accent-text)'
+                e.currentTarget.style.opacity = '1'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-secondary)'
+                e.currentTarget.style.opacity = '1'
+              }}
             >
               Switch
             </button>
             <span className="hidden sm:inline" style={{ color: 'var(--border-g)' }} aria-hidden>·</span>
             <span
-              className="netlifypixel hidden shrink-0 text-[11px] font-black tabular-nums sm:inline"
+              className="hidden shrink-0 text-[12px] font-semibold tabular-nums tracking-tight sm:inline sm:text-[13px]"
               style={{ color: 'var(--accent-text)', textShadow: 'var(--glow-balance)' }}
             >
-              {walletPts.toLocaleString()} pts
+              {walletPts.toLocaleString()}
+              <span className="ml-0.5 text-[11px] font-medium opacity-85 sm:text-xs">pts</span>
             </span>
             <span className="hidden sm:inline" style={{ color: 'var(--border-g)' }} aria-hidden>·</span>
             <button
               type="button"
               onClick={async () => { await disconnectWallet(); navigate('/access', { replace: true }) }}
-              className="shrink-0 transition"
-              style={{ color: 'var(--text-dim)' }}
+              className="shrink-0 rounded-md px-1 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition sm:text-xs"
+              style={{ color: 'var(--text-secondary)' }}
               onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
             >
               <span className="hidden sm:inline">Sign out</span>
               <span className="sm:hidden">Out</span>
             </button>
           </div>
         ) : (
-          <span className="hidden sm:inline" style={{ color: 'var(--text-dim)' }}>Not connected</span>
+          <span className="hidden sm:inline text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Not connected
+          </span>
         )}
       </div>
       </div>

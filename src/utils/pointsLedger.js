@@ -5,6 +5,13 @@ export const PREDICTIONS_KEY   = 'sapience_v2_predictions'
 export const BONUS_POINTS      = 1000
 export const PREDICTION_REWARD = 10
 
+/** Net P&L vs starting bonus (every wallet begins at {@link BONUS_POINTS}). */
+export function walletNetProfit(account) {
+  const b = Number(account?.balance)
+  if (!Number.isFinite(b)) return 0
+  return Math.round(b - BONUS_POINTS)
+}
+
 /** Dispatched when balance or predictions change locally (navbar / other tabs can refresh). */
 export const POINTS_CHANGED_EVENT = 'sapience-points-changed'
 
@@ -177,4 +184,54 @@ export function recordPrediction({ id, wallet, marketId, marketTitle, side, poin
 export function listWalletAccounts() {
   const map = readMap()
   return Object.values(map)
+}
+
+/** Deduct stake for a 5m BTC pick (no instant reward — settlement pays winners). */
+export function stake5mPick(address, stake) {
+  const key = normalizeAddress(address)
+  if (!key) return { ok: false, reason: 'Missing wallet address.' }
+
+  ensureWalletBonus(key)
+  const map = readMap()
+  const current = map[key]
+  const stakeN = Number(stake)
+  if (!Number.isFinite(stakeN) || stakeN <= 0) return { ok: false, reason: 'Invalid stake.' }
+  if (stakeN > current.balance) return { ok: false, reason: 'Insufficient points balance.' }
+
+  const next = {
+    ...current,
+    balance: current.balance - stakeN,
+    totalPredictions: current.totalPredictions + 1,
+    totalStaked: current.totalStaked + stakeN,
+    updatedAt: new Date().toISOString(),
+  }
+  map[key] = next
+  writeMap(map)
+  syncWallet(next)
+  notifyPointsChanged()
+  return { ok: true, account: next, staked: stakeN }
+}
+
+/** Credit points after a 5m round resolves (win, push refund, etc.). */
+export function credit5mPayout(address, amount) {
+  const key = normalizeAddress(address)
+  if (!key) return { ok: false, reason: 'Missing wallet address.' }
+
+  const amt = Number(amount)
+  if (!Number.isFinite(amt) || amt <= 0) return { ok: false, reason: 'Invalid payout.' }
+
+  ensureWalletBonus(key)
+  const map = readMap()
+  const current = map[key]
+  const next = {
+    ...current,
+    balance: current.balance + amt,
+    totalRewards: current.totalRewards + amt,
+    updatedAt: new Date().toISOString(),
+  }
+  map[key] = next
+  writeMap(map)
+  syncWallet(next)
+  notifyPointsChanged()
+  return { ok: true, account: next, credited: amt }
 }

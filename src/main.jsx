@@ -12,6 +12,7 @@ try {
 }
 import App from './App.jsx'
 import BuySapienceCoin from './pages/buy/market.jsx'
+import Btc5MinMarket from './pages/buy/5minmarket.jsx'
 import LeaderboardPage from './pages/leaderboard/leaderboard.jsx'
 import ProfilePage from './pages/profile/profile.jsx'
 import { WalletAuthProvider, useWalletAuth } from './context/walletAuth.jsx'
@@ -55,6 +56,14 @@ createRoot(document.getElementById('root')).render(
             element={
               <ProtectedRoute>
                 <BuySapienceCoin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/btc-5m"
+            element={
+              <ProtectedRoute>
+                <Btc5MinMarket />
               </ProtectedRoute>
             }
           />

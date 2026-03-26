@@ -17,6 +17,15 @@
       "totalRewards": 20,
       "createdAt": "2026-03-25T05:02:33.641Z",
       "updatedAt": "2026-03-25T14:56:10.961Z"
+    },
+    "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5": {
+      "address": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "balance": 1000,
+      "totalPredictions": 0,
+      "totalStaked": 0,
+      "totalRewards": 0,
+      "createdAt": "2026-03-26T09:29:39.838Z",
+      "updatedAt": "2026-03-26T10:37:59.464Z"
     }
   },
   "predictions": [
@@ -118,6 +127,69 @@
       "side": "NO",
       "points": 10,
       "createdAt": "2026-03-25T14:56:10.976Z"
+    },
+    {
+      "id": "btc5m-5915057-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5915057",
+      "marketTitle": "BTC 5m 09:25–09:30 UTC",
+      "side": "UP",
+      "points": 25,
+      "createdAt": "2026-03-26T09:29:39.854Z"
+    },
+    {
+      "id": "btc5m-5915061-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5915061",
+      "marketTitle": "BTC 5m 09:45–09:50 UTC",
+      "side": "UP",
+      "points": 25,
+      "createdAt": "2026-03-26T09:47:27.610Z"
+    },
+    {
+      "id": "btc5m-5915064-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5915064",
+      "marketTitle": "BTC 5m 10:00–10:05 UTC",
+      "side": "DOWN",
+      "points": 25,
+      "createdAt": "2026-03-26T10:03:15.975Z"
+    },
+    {
+      "id": "btc5m-5915066-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5915066",
+      "marketTitle": "BTC 5m 10:10–10:15 UTC",
+      "side": "UP",
+      "points": 25,
+      "createdAt": "2026-03-26T10:11:52.464Z"
+    },
+    {
+      "id": "btc5m-5915068-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5915068",
+      "marketTitle": "BTC 5m 10:20–10:25 UTC",
+      "side": "UP",
+      "points": 16,
+      "createdAt": "2026-03-26T10:20:52.215Z"
+    },
+    {
+      "id": "btc5m-5915069-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5915069",
+      "marketTitle": "BTC 5m 10:25–10:30 UTC",
+      "side": "UP",
+      "points": 800,
+      "createdAt": "2026-03-26T10:25:54.955Z"
+    },
+    {
+      "id": "btc5m-5915070-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5915070",
+      "marketTitle": "BTC 5m 10:30–10:35 UTC",
+      "side": "UP",
+      "points": 200,
+      "createdAt": "2026-03-26T10:30:15.736Z"
     }
   ]
 }

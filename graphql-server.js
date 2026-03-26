@@ -17,6 +17,8 @@ import { fileURLToPath }      from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DB_FILE   = join(__dirname, 'sapience-db.json')
+/** Must match `BONUS_POINTS` in src/utils/pointsLedger.js */
+const WALLET_START_PTS = 1000
 
 // ─── JSON database ────────────────────────────────────────────────────────────
 function readDB() {
@@ -56,7 +58,7 @@ const typeDefs = `#graphql
     "Get a single wallet by address"
     wallet(address: String!): Wallet
 
-    "All wallets sorted by balance (leaderboard)"
+    "All wallets sorted by net profit vs 1k start (leaderboard)"
     wallets: [Wallet!]!
 
     "Predictions — optionally filtered by wallet address"
@@ -95,7 +97,12 @@ const resolvers = {
 
     wallets() {
       const db = readDB()
-      return Object.values(db.wallets).sort((a, b) => b.balance - a.balance)
+      return Object.values(db.wallets).sort((a, b) => {
+        const pa = (a.balance ?? 0) - WALLET_START_PTS
+        const pb = (b.balance ?? 0) - WALLET_START_PTS
+        if (pb !== pa) return pb - pa
+        return (b.balance ?? 0) - (a.balance ?? 0)
+      })
     },
 
     predictions(_, { wallet, limit }) {

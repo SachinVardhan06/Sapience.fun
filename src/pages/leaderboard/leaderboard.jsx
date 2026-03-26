@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import TradeNavbar from '../../components/tradeNavbar'
 import { useWalletAuth } from '../../context/walletAuth'
 import {
+  BONUS_POINTS,
   PREDICTIONS_KEY,
   POINTS_CHANGED_EVENT,
   listWalletAccounts,
   mergePredictionLists,
   mergeWalletListsForLeaderboard,
+  walletNetProfit,
 } from '../../utils/pointsLedger'
 import { fetchWallets, fetchPredictions } from '../../utils/graphqlClient'
 
@@ -62,14 +64,19 @@ export default function LeaderboardPage() {
     [gqlPredictions, localPredictions],
   )
 
-  const ranked = useMemo(() =>
-    [...accounts].sort((a, b) => b.balance - a.balance),
-    [accounts]
+  const ranked = useMemo(
+    () =>
+      [...accounts].sort((a, b) => {
+        const d = walletNetProfit(b) - walletNetProfit(a)
+        if (d !== 0) return d
+        return (Number(b.balance) || 0) - (Number(a.balance) || 0)
+      }),
+    [accounts],
   )
 
-  const totalPoints = useMemo(() =>
-    ranked.reduce((s, a) => s + (Number(a.balance) || 0), 0),
-    [ranked]
+  const combinedPnL = useMemo(
+    () => ranked.reduce((s, a) => s + walletNetProfit(a), 0),
+    [ranked],
   )
 
   const myRank = useMemo(() => {
@@ -117,7 +124,8 @@ export default function LeaderboardPage() {
             </span>
           </h1>
           <p className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Every wallet starts with 1,000 bonus points. Rank climbs with higher balance and active predictions.
+            Every wallet starts with {BONUS_POINTS.toLocaleString()} bonus points. Ranks are by net profit (balance
+            minus that starting stack)—not raw balance.
           </p>
         </div>
 
@@ -126,7 +134,11 @@ export default function LeaderboardPage() {
           {[
             { label: 'Wallets',        value: ranked.length },
             { label: 'Predictions',    value: predictions.length },
-            { label: 'Total Points',   value: totalPoints.toLocaleString(), glow: true },
+            {
+              label: 'Combined P&L',
+              value: `${new Intl.NumberFormat('en-US', { signDisplay: 'exceptZero' }).format(combinedPnL)} pts`,
+              glow: true,
+            },
             { label: 'Your Rank',      value: myRank ? `#${myRank}` : '—', glow: !!myRank },
           ].map(s => (
             <div
@@ -185,11 +197,12 @@ export default function LeaderboardPage() {
               style={{
                 borderColor: 'var(--border-subtle)',
                 color: 'var(--text-muted)',
-                gridTemplateColumns: '60px 1fr 130px 160px',
+                gridTemplateColumns: '60px 1fr 100px 100px 150px',
               }}
             >
               <span>Rank</span>
               <span>Wallet</span>
+              <span>Profit</span>
               <span>Balance</span>
               <span>Activity</span>
             </div>
@@ -203,13 +216,14 @@ export default function LeaderboardPage() {
               </p>
             ) : ranked.map((row, i) => {
               const isMe = row.address === walletAddress?.toLowerCase()
+              const pnl = walletNetProfit(row)
               return (
                 <div
                   key={row.address}
                   className="grid items-center border-b px-5 py-3 transition-colors duration-100 last:border-b-0"
                   style={{
                     borderColor: 'var(--border-row)',
-                    gridTemplateColumns: '60px 1fr 130px 160px',
+                    gridTemplateColumns: '60px 1fr 100px 100px 150px',
                     background: isMe ? 'var(--accent-surface)' : 'transparent',
                   }}
                   onMouseEnter={e => { if (!isMe) e.currentTarget.style.background = 'var(--row-hover)' }}
@@ -246,12 +260,22 @@ export default function LeaderboardPage() {
                     )}
                   </div>
 
-                  {/* Balance */}
+                  {/* Profit (net vs starting bonus) */}
                   <span
                     className="text-[13px] font-bold tabular-nums"
                     style={{
-                      color: isMe ? 'var(--accent-text)' : 'var(--text-heading)',
+                      color: pnl > 0 ? '#4ade80' : pnl < 0 ? '#f87171' : 'var(--text-muted)',
                       textShadow: isMe ? 'var(--glow-balance)' : 'none',
+                    }}
+                  >
+                    {new Intl.NumberFormat('en-US', { signDisplay: 'exceptZero' }).format(pnl)} pts
+                  </span>
+
+                  {/* Balance */}
+                  <span
+                    className="text-[13px] font-semibold tabular-nums"
+                    style={{
+                      color: isMe ? 'var(--accent-text)' : 'var(--text-heading)',
                     }}
                   >
                     {Number(row.balance || 0).toLocaleString()} pts
