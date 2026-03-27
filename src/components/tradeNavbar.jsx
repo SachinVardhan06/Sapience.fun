@@ -58,6 +58,7 @@ function TradeNavbar() {
       {/* Nav links — scroll horizontally on narrow viewports instead of clipping */}
       <div className="nav-links-scroll flex min-w-0 items-center justify-center gap-0.5 overflow-x-auto sm:gap-0.5">
         {[
+          { to: '/', label: 'Home' },
           { to: '/prediction', label: 'Markets' },
           { to: '/btc-5m', label: 'BTC 5m' },
           { to: '/leaderboard', label: 'Leaderboard' },

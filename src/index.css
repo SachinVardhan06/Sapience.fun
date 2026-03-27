@@ -229,3 +229,182 @@ textarea::placeholder {
     opacity: 0.5;
   }
 }
+
+/* ── Marketing homepage (/) ─────────────────────────────────────────────── */
+/* body/html use overflow:hidden — home scrolls inside this pane */
+.home-root {
+  -webkit-overflow-scrolling: touch;
+}
+
+.home-root-scroll {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-root-scroll {
+    scroll-behavior: auto;
+  }
+}
+
+.home-marquee {
+  overflow: hidden;
+  padding: 0.65rem 0;
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-glass));
+}
+
+.home-marquee-track {
+  display: flex;
+  width: max-content;
+  font-size: 0.65rem;
+  color: var(--accent-muted);
+  animation: home-marquee 38s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-marquee-track {
+    animation: none;
+    justify-content: center;
+    width: 100%;
+    flex-wrap: wrap;
+    padding: 0.25rem 1rem;
+  }
+}
+
+@keyframes home-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.home-scroll-hint {
+  animation: home-hint-bob 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-scroll-hint {
+    animation: none;
+  }
+}
+
+@keyframes home-hint-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(6px);
+    opacity: 1;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .home-reveal {
+    animation: home-reveal-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 28%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-reveal {
+      animation: none;
+    }
+  }
+}
+
+@keyframes home-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-mesh {
+  background:
+    radial-gradient(ellipse 85% 55% at 12% 16%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 52%),
+    radial-gradient(ellipse 75% 48% at 88% 10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 50%),
+    radial-gradient(ellipse 65% 70% at 48% 100%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 48%),
+    var(--bg-page);
+}
+
+.home-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(88px);
+  pointer-events: none;
+  opacity: 0.38;
+  animation: home-float 20s ease-in-out infinite;
+}
+
+[data-theme="light"] .home-orb {
+  opacity: 0.22;
+}
+
+.home-orb-a {
+  width: min(58vw, 440px);
+  height: min(58vw, 440px);
+  left: -12%;
+  top: 12%;
+  background: color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+.home-orb-b {
+  width: min(48vw, 380px);
+  height: min(48vw, 380px);
+  right: -8%;
+  top: 32%;
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  animation-delay: -7s;
+  animation-duration: 24s;
+}
+
+.home-orb-c {
+  width: min(72vw, 540px);
+  height: min(42vw, 300px);
+  left: 18%;
+  bottom: -12%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  animation-delay: -12s;
+  animation-duration: 28s;
+}
+
+.home-orb-d {
+  width: min(36vw, 280px);
+  height: min(36vw, 280px);
+  left: 42%;
+  top: 48%;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  animation-delay: -4s;
+  animation-duration: 32s;
+  opacity: 0.22;
+}
+
+[data-theme="light"] .home-orb-d {
+  opacity: 0.14;
+}
+
+@keyframes home-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(3%, -2.5%) scale(1.05);
+  }
+  66% {
+    transform: translate(-2.5%, 2.5%) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-orb {
+    animation: none;
+  }
+}

@@ -11,6 +11,7 @@ try {
   document.documentElement.setAttribute('data-theme', 'dark')
 }
 import App from './App.jsx'
+import HomePage from './pages/home/HomePage.jsx'
 import BuySapienceCoin from './pages/buy/market.jsx'
 import Btc5MinMarket from './pages/buy/5minmarket.jsx'
 import LeaderboardPage from './pages/leaderboard/leaderboard.jsx'
@@ -84,8 +85,8 @@ createRoot(document.getElementById('root')).render(
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/access" replace />} />
-          <Route path="*" element={<Navigate to="/access" replace />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </WalletAuthProvider>
