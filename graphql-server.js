@@ -11,8 +11,10 @@
  * Run standalone:  node graphql-server.js
  * Run with dev:    npm run dev  (concurrently handles it)
  *
- * Read-only API (no Mutation in schema — Sandbox + introspection show queries only): GQL_DISABLE_MUTATIONS=true
- * (breaks SPA wallet/prediction sync unless you stop calling mutations.)
+ * Read-only API (no Mutation in schema): GQL_DISABLE_MUTATIONS=true (breaks SPA GraphQL writes).
+ *
+ * Hide Mutation in introspection only (Sandbox/docs look query-only; POST mutations still work): default ON.
+ * Show Mutation in Sandbox again: GQL_SHOW_MUTATIONS_IN_INTROSPECTION=true
  */
 
 import { ApolloServer } from '@apollo/server'
@@ -24,6 +26,39 @@ import { createPersistence } from './graphql-persist.mjs'
 const persistence = await createPersistence()
 
 const mutationsDisabled = process.env.GQL_DISABLE_MUTATIONS === 'true'
+
+/** Strip Mutation from introspection JSON so Apollo Sandbox does not list it; real mutation operations still execute. */
+const hideMutationsFromIntrospection =
+  process.env.GQL_SHOW_MUTATIONS_IN_INTROSPECTION !== 'true'
+
+function stripMutationFromIntrospectionData(data) {
+  if (!data || typeof data !== 'object') return
+  if (Object.prototype.hasOwnProperty.call(data, '__schema') && data.__schema && typeof data.__schema === 'object') {
+    const s = data.__schema
+    if (s.mutationType != null) s.mutationType = null
+    if (Array.isArray(s.types)) {
+      s.types = s.types.filter((t) => !t || t.name !== 'Mutation')
+    }
+  }
+  if (data.__type?.name === 'Mutation') {
+    data.__type = null
+  }
+}
+
+function apolloPluginStripMutationIntrospection() {
+  return {
+    async requestDidStart() {
+      return {
+        async willSendResponse(requestContext) {
+          if (!hideMutationsFromIntrospection || mutationsDisabled) return
+          const body = requestContext.response.body
+          if (body?.kind !== 'single' || body.singleResult?.data == null) return
+          stripMutationFromIntrospectionData(body.singleResult.data)
+        },
+      }
+    },
+  }
+}
 
 const typeDefs = `#graphql
   type Wallet {
@@ -110,11 +145,11 @@ const resolvers = {
       }),
 }
 
-/** In production, default landing page is text-only; explicit plugin embeds Apollo Sandbox on GET /. */
-const plugins =
-  process.env.NODE_ENV === 'production'
-    ? [ApolloServerPluginLandingPageProductionDefault({ embed: true })]
-    : []
+/** Landing page in production; introspection scrubber in all environments (unless GQL_SHOW_MUTATIONS_IN_INTROSPECTION=true). */
+const plugins = [apolloPluginStripMutationIntrospection()]
+if (process.env.NODE_ENV === 'production') {
+  plugins.push(ApolloServerPluginLandingPageProductionDefault({ embed: true }))
+}
 
 /** Apollo defaults introspection to off in production; Sandbox needs it to load the schema. Set GQL_DISABLE_INTROSPECTION=true to turn off. */
 const introspection = process.env.GQL_DISABLE_INTROSPECTION !== 'true'
