@@ -159,6 +159,9 @@ body,
 
 :root {
   --beta-banner-height: 0px;
+  /* Mickey hand: default vs pointer from SweezyCursors .cur → 24× PNG */
+  --cursor-mickey-default: url("/mickey-default.png") 1 1, auto;
+  --cursor-mickey-pointer: url("/mickey-pointer.png") 3 2, pointer;
 }
 
 html.beta-banner-on {
@@ -172,6 +175,45 @@ body {
   background: var(--bg-page);
   color: var(--text-body);
   font-family: "Satoshi", sans-serif;
+}
+
+/* Custom cursors on fine pointers only (skip touch / coarse) */
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body {
+    cursor: var(--cursor-mickey-default);
+  }
+
+  a,
+  button,
+  [role="button"],
+  summary,
+  label,
+  select,
+  .cursor-pointer {
+    cursor: var(--cursor-mickey-pointer);
+  }
+
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  textarea,
+  [contenteditable="true"]:not([contenteditable="false"]) {
+    cursor: text;
+  }
+
+  :disabled,
+  [aria-disabled="true"],
+  .cursor-not-allowed {
+    cursor: not-allowed;
+  }
 }
 
 .netlifypixel {
@@ -406,5 +448,69 @@ textarea::placeholder {
 @media (prefers-reduced-motion: reduce) {
   .home-orb {
     animation: none;
+  }
+}
+
+.home-stat-card {
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.home-stat-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-g));
+  box-shadow: 0 14px 42px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.home-feature-card {
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.home-feature-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-g));
+}
+
+.home-arena-card {
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.home-arena-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border-g));
+  box-shadow: 0 16px 48px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.home-hero-chip {
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease;
+}
+
+.home-hero-chip:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-g));
+}
+
+.home-faq-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-stat-card:hover,
+  .home-feature-card:hover,
+  .home-arena-card:hover,
+  .home-hero-chip:hover {
+    transform: none;
   }
 }

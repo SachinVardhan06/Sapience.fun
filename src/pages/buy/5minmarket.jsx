@@ -20,6 +20,8 @@ import {
 import { credit5mPayout, recordPrediction, stake5mPick } from '../../utils/pointsLedger'
 
 const LOCK_MS = 15_000
+/** Past slots to scan for pending settlement (covers ~2 days if user was away). */
+const SETTLEMENT_SLOT_LOOKBACK = 600
 /** Rare HTTP sample if WebSocket stalls (Coinbase REST; stays under limits). */
 const PRICE_BACKUP_POLL_MS = 45_000
 
@@ -45,6 +47,21 @@ function utcRangeLabel(slot) {
   const a = new Date(slotStartMs(slot)).toISOString().slice(11, 16)
   const b = new Date(slotEndMs(slot)).toISOString().slice(11, 16)
   return `${a}–${b} UTC`
+}
+
+function outcomeFromOpenClose(open, close) {
+  if (open == null || close == null || !Number.isFinite(open) || !Number.isFinite(close)) return null
+  if (Math.abs(close - open) < PUSH_EPS_USD) return 'PUSH'
+  return close > open ? 'UP' : 'DOWN'
+}
+
+function slotOutcomeFromStorage(slotId, roundsMap, picksList) {
+  const sk = String(slotId)
+  const row = roundsMap[sk]
+  const oc = outcomeFromOpenClose(row?.open, row?.close)
+  if (oc) return oc
+  const fromPick = picksList.find((p) => p.slotId === slotId && p.outcome && p.status !== 'pending')
+  return fromPick?.outcome ?? null
 }
 
 /** Full live BTC/USD readout (replaces chart). */
@@ -209,9 +226,14 @@ export default function Btc5MinMarket() {
     }
   }, [])
 
+  const runSettlementRef = useRef(async () => {})
+
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === 'visible') void sampleRef.current()
+      if (document.visibilityState === 'visible') {
+        void sampleRef.current()
+        void runSettlementRef.current()
+      }
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
@@ -238,7 +260,7 @@ export default function Btc5MinMarket() {
     setRounds(next)
   }, [liveBtc, slotKey])
 
-  /** Resolve finished rounds: fetch close once, settle pending picks, credit wallets. */
+  /** Resolve finished rounds: fetch close once, settle pending picks, credit wallets. Runs on timer + when tab/app regains focus. */
   useEffect(() => {
     let cancelled = false
 
@@ -247,13 +269,26 @@ export default function Btc5MinMarket() {
       const current = slotIdFromTime(t)
       let r = readRounds()
 
-      for (let s = current - 40; s < current; s++) {
+      for (let s = current - SETTLEMENT_SLOT_LOOKBACK; s < current; s++) {
         if (cancelled) return
         if (t < slotEndMs(s)) continue
 
         const sk = String(s)
-        let row = r[sk]
-        if (!row?.open) continue
+        let row = { ...(r[sk] || {}) }
+
+        let anchorOpen = row.open
+        if (anchorOpen == null || !Number.isFinite(anchorOpen)) {
+          const slotPicks = readPicks().filter((p) => p.slotId === s && Number.isFinite(p.openPrice))
+          if (slotPicks.length) anchorOpen = slotPicks[0].openPrice
+        }
+        if (anchorOpen == null || !Number.isFinite(anchorOpen)) continue
+
+        if (row.open == null || !Number.isFinite(row.open)) {
+          row = { ...row, open: anchorOpen, openAt: row.openAt || new Date().toISOString() }
+          r = { ...r, [sk]: row }
+          writeRounds(r)
+        }
+
         if (row.picksSettled) continue
 
         let close = row.close
@@ -312,13 +347,21 @@ export default function Btc5MinMarket() {
       }
     }
 
+    runSettlementRef.current = run
+
     run()
     const id = setInterval(run, 5000)
+    const onPageShow = () => void run()
+    const onWinFocus = () => void run()
+    window.addEventListener('pageshow', onPageShow)
+    window.addEventListener('focus', onWinFocus)
     return () => {
       cancelled = true
       clearInterval(id)
+      window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener('focus', onWinFocus)
     }
-  }, [slot])
+  }, [])
 
   useEffect(() => {
     const prev = picksRef.current ?? []
@@ -364,6 +407,24 @@ export default function Btc5MinMarket() {
       .sort((a, b) => b.slotId - a.slotId)
       .slice(0, 12)
   }, [picks, walletAddress])
+
+  /** Sum of all stakes placed on this 5m window (local session — every wallet on this device). */
+  const currentSlotTotalVolume = useMemo(() => {
+    return picks.filter((p) => p.slotId === slot).reduce((sum, p) => sum + (Number(p.stake) || 0), 0)
+  }, [picks, slot])
+
+  const lastFiveWindows = useMemo(() => {
+    const rows = []
+    for (let i = 1; i <= 5; i++) {
+      const sid = slot - i
+      rows.push({
+        slotId: sid,
+        label: utcRangeLabel(sid),
+        outcome: slotOutcomeFromStorage(sid, rounds, picks),
+      })
+    }
+    return rows
+  }, [rounds, picks, slot])
 
   const placePick = async (side) => {
     if (!walletAddress || busy || locked || myPickThisSlot) return
@@ -466,9 +527,9 @@ export default function Btc5MinMarket() {
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden lg:flex-row lg:items-stretch">
-            {/* Recent trades — left on desktop, below main on narrow screens */}
+            {/* Recent trades — left on desktop */}
             <aside
-              className="order-2 flex max-h-[min(40vh,220px)] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border p-3 sm:max-h-[min(38vh,260px)] lg:order-1 lg:max-h-none lg:w-56 lg:max-w-[14rem] xl:w-64 xl:max-w-[16rem]"
+              className="order-2 flex max-h-[min(40vh,220px)] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border p-3 sm:max-h-[min(38vh,260px)] lg:order-1 lg:max-h-none lg:w-52 lg:max-w-52 xl:w-56 xl:max-w-56"
               style={{
                 background: 'var(--bg-glass2)',
                 borderColor: 'var(--border-g2)',
@@ -707,6 +768,62 @@ export default function Btc5MinMarket() {
               ) : null}
             </p>
             </div>
+
+            {/* Last 5 windows + current volume — right on desktop */}
+            <aside
+              className="order-3 flex max-h-[min(36vh,240px)] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border p-3 sm:max-h-[min(34vh,280px)] lg:max-h-none lg:w-52 lg:max-w-52 xl:w-56 xl:max-w-56"
+              style={{
+                background: 'var(--bg-glass2)',
+                borderColor: 'var(--border-g2)',
+                boxShadow: '0 0 28px color-mix(in srgb, var(--accent) 6%, transparent)',
+              }}
+            >
+              <p
+                className="mb-2 shrink-0 text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: 'var(--accent-text)' }}
+              >
+                Current window volume
+              </p>
+              <p
+                className="mb-3 shrink-0 font-mono text-lg font-bold tabular-nums sm:text-xl"
+                style={{ color: 'var(--text-heading)' }}
+              >
+                {currentSlotTotalVolume.toLocaleString()}{' '}
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  pts staked
+                </span>
+              </p>
+              <p
+                className="mb-1.5 shrink-0 border-t pt-2 text-[10px] font-bold uppercase tracking-wider"
+                style={{ borderColor: 'var(--border-subtle)', color: 'var(--accent-text)' }}
+              >
+                Last 5 windows
+              </p>
+              <ul
+                className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5 text-[10px] sm:text-[11px]"
+                style={{ scrollbarGutter: 'stable' }}
+              >
+                {lastFiveWindows.map((w) => {
+                  const oc = w.outcome
+                  const color =
+                    oc === 'UP' ? '#4ade80' : oc === 'DOWN' ? '#f87171' : oc === 'PUSH' ? '#fbbf24' : 'var(--text-muted)'
+                  return (
+                    <li
+                      key={w.slotId}
+                      className="flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5"
+                      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-glass)' }}
+                    >
+                      <span className="min-w-0 truncate font-mono text-[9px]" style={{ color: 'var(--text-secondary)' }}>
+                        {w.label}
+                      </span>
+                      <span className="shrink-0 font-black tabular-nums" style={{ color }}>
+                        {oc ?? '—'}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </aside>
           </div>
         </div>
       </div>

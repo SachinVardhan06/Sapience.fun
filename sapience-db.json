@@ -20,12 +20,12 @@
     },
     "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5": {
       "address": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
-      "balance": 1000,
-      "totalPredictions": 0,
-      "totalStaked": 0,
-      "totalRewards": 0,
+      "balance": 994,
+      "totalPredictions": 8,
+      "totalStaked": 500,
+      "totalRewards": 494,
       "createdAt": "2026-03-26T09:29:39.838Z",
-      "updatedAt": "2026-03-26T17:32:03.500Z"
+      "updatedAt": "2026-03-29T17:25:20.527Z"
     },
     "0x0729f5383b3110d57416636d3804b17550b1e1bd": {
       "address": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
@@ -208,6 +208,78 @@
       "side": "DOWN",
       "points": 250,
       "createdAt": "2026-03-29T04:59:10.490Z"
+    },
+    {
+      "id": "1774764801027-0-0e209fa8",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "A319ydGB1B7f4PMOROL3",
+      "marketTitle": "In early 2028, will an AI be able to generate a full high-quality movie to a prompt?",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-29T06:13:21.063Z"
+    },
+    {
+      "id": "1774764801027-1-5e5919f3",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "zIjFL4cxLmRUbeRKdgCh",
+      "marketTitle": "🇧🇷 President in Jan 2027 is Lula, or whoever he endorses / Lula ou seu indicado é presidente em janeiro de 2027",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-29T06:13:21.069Z"
+    },
+    {
+      "id": "1774792537803-0-6705c745",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "2tEzuphRlP",
+      "marketTitle": "Will AI be capable of producing an Annals-quality math paper for $100k by March 2030?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-29T13:55:37.850Z"
+    },
+    {
+      "id": "1774792537803-1-a9d2651c",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "zIjFL4cxLmRUbeRKdgCh",
+      "marketTitle": "🇧🇷 President in Jan 2027 is Lula, or whoever he endorses / Lula ou seu indicado é presidente em janeiro de 2027",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-29T13:55:37.858Z"
+    },
+    {
+      "id": "1774792537803-2-3cd5e174",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "A319ydGB1B7f4PMOROL3",
+      "marketTitle": "In early 2028, will an AI be able to generate a full high-quality movie to a prompt?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-29T13:55:37.866Z"
+    },
+    {
+      "id": "btc5m-5915975-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5915975",
+      "marketTitle": "BTC 5m 13:55–14:00 UTC",
+      "side": "DOWN",
+      "points": 100,
+      "createdAt": "2026-03-29T13:55:53.459Z"
+    },
+    {
+      "id": "btc5m-5916016-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5916016",
+      "marketTitle": "BTC 5m 17:20–17:25 UTC",
+      "side": "UP",
+      "points": 250,
+      "createdAt": "2026-03-29T17:23:46.169Z"
+    },
+    {
+      "id": "btc5m-5916017-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5916017",
+      "marketTitle": "BTC 5m 17:25–17:30 UTC",
+      "side": "UP",
+      "points": 100,
+      "createdAt": "2026-03-29T17:25:20.536Z"
     }
   ]
 }
