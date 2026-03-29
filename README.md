@@ -76,7 +76,7 @@ See **`.env.example`**. Common entries:
 | Variable | Used by | Purpose |
 |----------|---------|---------|
 | `VITE_APP_ORIGIN` | Vite client | Optional. Canonical site URL; defaults to `https://app.sapience.fun` in production builds if unset. |
-| `VITE_GQL_URL` | Vite client | GraphQL endpoint: dev default `http://localhost:4000/`. **Production:** `https://api.sapience.fun/` (POST to origin root). If omitted in prod build, client defaults to that URL. |
+| `VITE_GQL_URL` | Vite client | **Development only:** override GraphQL URL (default `http://localhost:4000/`). **Production builds** always use `https://api.sapience.fun/` from `src/config/site.js` — this variable is ignored. |
 | `VITE_KALSHI_PROXY_URL` | `market.jsx` | Full Kalshi markets URL. Dev default `http://localhost:3001/api/kalshi/...`. **Set in production** to your hosted proxy (same host as API or dedicated). |
 | `GQL_PORT` | `graphql-server.js` | Listen port (default `4000`). |
 | `DATABASE_URL` | `graphql-server.js` | **Recommended production:** PostgreSQL connection string. Tables auto-created; survives redeploys. Use provider backups. |
@@ -119,11 +119,11 @@ New wallets hitting **Markets** may be prompted for a **6-character** code once 
 Host the built SPA at **`https://app.sapience.fun`** (DNS `CNAME` / custom domain on Netlify, Vercel, etc.). `vite.config.js` uses default `base: '/'`, which is correct for a subdomain root.
 
 ```bash
-VITE_GQL_URL=https://api.sapience.fun/ \
 VITE_KALSHI_PROXY_URL=https://your-proxy.example.com/api/kalshi/markets?limit=50&status=open \
 npm run build
 ```
 
+- **GraphQL** — production builds call **`https://api.sapience.fun/`** automatically (see `src/utils/graphqlClient.js`).
 - **`VITE_APP_ORIGIN`** — optional; if omitted, production builds assume `https://app.sapience.fun` (see `src/config/site.js`).
 - Deploy the **`dist/`** folder to the **app** host.
 - Run **GraphQL** at **`https://api.sapience.fun/`** (custom domain on the same service that runs `node graphql-server.js`). Run the **Kalshi proxy** on the same host or another URL; allow **CORS** from `https://app.sapience.fun` if the browser reports blocked requests.

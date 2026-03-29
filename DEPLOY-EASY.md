@@ -64,7 +64,7 @@ Goal: **UI** at `https://app.sapience.fun` · **GraphQL** at `https://api.sapien
 
 3. Save. **Wait** 5–30 minutes (sometimes up to 48h) for DNS + SSL. In Render, the domain should show **Verified** when ready.
 
-### D. Netlify: build the app with `VITE_GQL_URL`
+### D. Netlify: build the app
 
 1. Open **[app.netlify.com](https://app.netlify.com)** → log in.  
 2. **Add new site** → **Import an existing project** → **GitHub** → authorize → pick **this repo**.  
@@ -76,13 +76,14 @@ Goal: **UI** at `https://app.sapience.fun` · **GraphQL** at `https://api.sapien
    | **Publish directory** | `dist` |
 
 4. **Before** the first deploy, open **Show advanced** / **Environment variables** (or add them right after: **Site configuration → Environment variables**).  
-5. Add for **Production**:
+5. **GraphQL:** production builds **always** call **`https://api.sapience.fun/`** (`src/config/site.js` + `graphqlClient.js`). You do **not** need `VITE_GQL_URL` on Netlify. **Remove** it if it still points at an old host (e.g. `*.onrender.com`).
+
+   Add for **Production** as needed:
 
    | Key | Value |
    |-----|--------|
-   | **`VITE_GQL_URL`** | `https://api.sapience.fun/` |
-
-   (Optional: `VITE_APP_ORIGIN` = `https://app.sapience.fun`, and `VITE_KALSHI_PROXY_URL` if you deployed the Kalshi proxy — see §2.)
+   | **`VITE_KALSHI_PROXY_URL`** | Your hosted Kalshi proxy URL (see §2) |
+   | **`VITE_APP_ORIGIN`** | `https://app.sapience.fun` *(optional)* |
 
 6. **Deploy site**. After it finishes, every change to `VITE_*` needs a **new deploy**: **Deploys** → **Trigger deploy** → **Clear cache and deploy site**.
 
@@ -145,7 +146,7 @@ The React app calls this for wallets, leaderboard, predictions.
 | **CNAME** | `api` | *(what Render shows)* |
 
 5. Wait for DNS + SSL (often 5–30 minutes).  
-6. Your GraphQL URL is usually **`https://api.sapience.fun/`** (POST body, same as local Apollo — often no `/graphql` path; your app uses whatever `VITE_GQL_URL` is).
+6. Your GraphQL URL is **`https://api.sapience.fun/`** (POST body, same as local Apollo — no `/graphql` path). The production SPA is wired to this URL in code.
 
 **Check:** In browser open `https://api.sapience.fun/` — you may see a simple message or 400; that’s OK. The app uses **POST** with JSON.
 
@@ -219,9 +220,10 @@ If you skip this, **Manifold** markets can still work; Kalshi will fail until th
 
 | Key | Value (replace with yours) |
 |-----|----------------------------|
-| `VITE_GQL_URL` | `https://api.sapience.fun/` |
 | `VITE_KALSHI_PROXY_URL` | `https://YOUR-KALSHI-SERVICE.onrender.com/api/kalshi/markets?limit=50&status=open` *(or your real proxy URL)* |
-| `VITE_APP_ORIGIN` | `https://app.sapience.fun` |
+| `VITE_APP_ORIGIN` | `https://app.sapience.fun` *(optional)* |
+
+*(GraphQL uses **`https://api.sapience.fun/`** in production builds automatically — do not set `VITE_GQL_URL` unless you use it for local dev in `.env.local`.)*
 
 6. **Save**, then **Deploy site** (or **Trigger deploy** → **Clear cache and deploy** if you already deployed).
 
@@ -264,7 +266,7 @@ Netlify/Vercel **rebuild** the site after you change `VITE_*` variables (they ar
 1. Open **`https://app.sapience.fun`**.  
 2. **Connect wallet** → go to **Markets** (`/prediction`).  
 3. Open **DevTools → Network**:  
-   - Requests to **`VITE_GQL_URL`** should be **200** (not blocked by CORS).  
+   - Requests to **`https://api.sapience.fun/`** (GraphQL POST) should be **200** (not blocked by CORS).  
    - Kalshi request should hit your **`VITE_KALSHI_PROXY_URL`** if you use Kalshi.  
 4. If you see **CORS errors**, the API must allow your app origin. Apollo’s standalone server uses `cors` with permissive defaults; if you put a reverse proxy in front, add headers there.
 
@@ -275,7 +277,7 @@ Netlify/Vercel **rebuild** the site after you change `VITE_*` variables (they ar
 | Problem | What to do |
 |---------|------------|
 | Blank page on refresh on `/prediction` | SPA fallback: Netlify `public/_redirects` should include `/* /index.html 200`. Redeploy. |
-| `localhost` in Network tab | You didn’t set `VITE_GQL_URL` / `VITE_KALSHI_PROXY_URL` on the host, or didn’t redeploy after setting them. |
+| `localhost` in Network tab | Kalshi: set `VITE_KALSHI_PROXY_URL` and redeploy. GraphQL should hit **`api.sapience.fun`** from the built bundle; if you still see a wrong host, clear Netlify **`VITE_GQL_URL`** (legacy) and redeploy. |
 | Kalshi errors | Set `VITE_KALSHI_PROXY_URL` to the **public** proxy URL; keys must be set on **Render** for that service. |
 | API sleeps on free Render | First request after idle can take ~50s; upgrade or use a keep-alive ping. |
 | Data lost on every deploy | Set **`DATABASE_URL`** (Postgres, §1C) or a **disk** + `SAPIENCE_DB_DIR`. |
@@ -284,6 +286,6 @@ Netlify/Vercel **rebuild** the site after you change `VITE_*` variables (they ar
 
 ## 8. One-line recap
 
-**DNS** `app` → Netlify (or Vercel) · **DNS** `api` → Render · **Build app** with `VITE_GQL_URL` + `VITE_KALSHI_PROXY_URL` · **Redeploy** when env changes.
+**DNS** `app` → Netlify (or Vercel) · **DNS** `api` → Render · **Build app** (GraphQL → `api.sapience.fun` in code; set `VITE_KALSHI_PROXY_URL` if needed) · **Redeploy** when env changes.
 
 That’s the full path to run **markets on `app.sapience.fun`**.

@@ -1,19 +1,18 @@
 /**
  * Minimal fetch-based GraphQL client.
- * Dev: Apollo standalone on port 4000 (POST to /).
- * Prod: set VITE_GQL_URL to https://api.sapience.fun/ (same path as local — no /graphql suffix).
- * If unset in production builds, uses DEFAULT_GQL_URL_PROD from config/site.js.
+ * Production builds always POST to {@link DEFAULT_GQL_URL_PROD} (https://api.sapience.fun/) so
+ * the live site is not overridden by a stale CI env (e.g. an old onrender URL).
+ * Local dev: set VITE_GQL_URL or default http://localhost:4000/ (POST to /, no /graphql).
  */
 
 import { DEFAULT_GQL_URL_PROD } from '../config/site.js'
 
 const rawGql = import.meta.env.VITE_GQL_URL
-const GQL_URL =
-  (typeof rawGql === 'string' && rawGql.trim() !== ''
-    ? rawGql.trim()
-    : import.meta.env.PROD
-      ? DEFAULT_GQL_URL_PROD
+const GQL_URL = import.meta.env.DEV
+  ? (typeof rawGql === 'string' && rawGql.trim() !== ''
+      ? rawGql.trim()
       : 'http://localhost:4000/')
+  : DEFAULT_GQL_URL_PROD
 
 async function gql(query, variables = {}) {
   const res = await fetch(GQL_URL, {
