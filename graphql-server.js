@@ -10,6 +10,9 @@
  *
  * Run standalone:  node graphql-server.js
  * Run with dev:    npm run dev  (concurrently handles it)
+ *
+ * Read-only API (no Mutation in schema — Sandbox + introspection show queries only): GQL_DISABLE_MUTATIONS=true
+ * (breaks SPA wallet/prediction sync unless you stop calling mutations.)
  */
 
 import { ApolloServer } from '@apollo/server'
@@ -19,6 +22,8 @@ import { createServer as createNetServer } from 'net'
 import { createPersistence } from './graphql-persist.mjs'
 
 const persistence = await createPersistence()
+
+const mutationsDisabled = process.env.GQL_DISABLE_MUTATIONS === 'true'
 
 const typeDefs = `#graphql
   type Wallet {
@@ -51,7 +56,10 @@ const typeDefs = `#graphql
     "Predictions — optionally filtered by wallet address"
     predictions(wallet: String, limit: Int): [Prediction!]!
   }
-
+${
+  mutationsDisabled
+    ? ''
+    : `
   type Mutation {
     "Create or update wallet stats"
     upsertWallet(
@@ -73,6 +81,8 @@ const typeDefs = `#graphql
     ): Prediction!
   }
 `
+}
+`
 
 const resolvers = {
   Query: {
@@ -86,15 +96,18 @@ const resolvers = {
       return persistence.listPredictions(args)
     },
   },
-
-  Mutation: {
-    upsertWallet(_, args) {
-      return persistence.upsertWallet(args)
-    },
-    savePrediction(_, args) {
-      return persistence.savePrediction(args)
-    },
-  },
+  ...(mutationsDisabled
+    ? {}
+    : {
+        Mutation: {
+          upsertWallet(_, args) {
+            return persistence.upsertWallet(args)
+          },
+          savePrediction(_, args) {
+            return persistence.savePrediction(args)
+          },
+        },
+      }),
 }
 
 /** In production, default landing page is text-only; explicit plugin embeds Apollo Sandbox on GET /. */
@@ -141,6 +154,9 @@ const { url } = await startStandaloneServer(server, {
 })
 
 console.log(`[apollo] GraphQL server ready at ${url}`)
+if (mutationsDisabled) {
+  console.warn('[apollo] Mutations are OFF (GQL_DISABLE_MUTATIONS=true). SPA wallet/prediction sync will fail until unset.')
+}
 if (PORT !== PREFERRED) {
   console.warn(
     `[apollo] Using port ${PORT} instead of ${PREFERRED}. Set VITE_GQL_URL=http://localhost:${PORT}/ in .env.local so the React app hits this server.`,
