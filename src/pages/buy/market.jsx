@@ -5,6 +5,7 @@ import sapienceLogo from '../../assets/sapiencelogo.jpeg'
 import { fetchWallet } from '../../utils/graphqlClient'
 import {
   BONUS_POINTS,
+  POINTS_CHANGED_EVENT,
   PREDICTIONS_KEY,
   applyPredictionBatch,
   ensureWalletBonus,
@@ -134,13 +135,25 @@ export default function PredictionMarket() {
     fetchWallet(walletAddress)
       .then((w) => {
         if (cancelled || !w) return
-        const m = mergeWalletRecords(w, local)
+        const fresh =
+          getWalletAccount(walletAddress) || ensureWalletBonus(walletAddress) || local
+        const m = mergeWalletRecords(w, fresh)
         if (m) setWalletPts(Number(m.balance) || BONUS_POINTS)
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
+  }, [walletAddress])
+
+  useEffect(() => {
+    const bump = () => {
+      if (!walletAddress) return
+      const acc = getWalletAccount(walletAddress) || ensureWalletBonus(walletAddress)
+      if (acc) setWalletPts(Number(acc.balance) || BONUS_POINTS)
+    }
+    window.addEventListener(POINTS_CHANGED_EVENT, bump)
+    return () => window.removeEventListener(POINTS_CHANGED_EVENT, bump)
   }, [walletAddress])
 
   const fetchMarkets = useCallback(async () => {
@@ -285,7 +298,9 @@ export default function PredictionMarket() {
           points: e.points,
         })
       }
-      setNotice(`${basket.length} prediction${basket.length > 1 ? 's' : ''} placed · +${batch.totalReward} pts`)
+      setNotice(
+        `${basket.length} prediction${basket.length > 1 ? 's' : ''} placed · −${batch.totalStake} pts staked`,
+      )
       setNoticeOk(true)
     }, 1800)
   }

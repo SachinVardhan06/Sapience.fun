@@ -21,7 +21,9 @@ export function useWalletBalance(walletAddress) {
     fetchWallet(walletAddress)
       .then((w) => {
         if (!w) return
-        const m = mergeWalletRecords(w, local)
+        const fresh =
+          getWalletAccount(walletAddress) || ensureWalletBonus(walletAddress) || local
+        const m = mergeWalletRecords(w, fresh)
         if (m) setBalance(Number(m.balance) || BONUS_POINTS)
       })
       .catch(() => {})

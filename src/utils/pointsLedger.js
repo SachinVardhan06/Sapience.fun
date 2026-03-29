@@ -3,8 +3,7 @@ import { upsertWallet as gqlUpsertWallet, savePrediction as gqlSavePrediction } 
 export const WALLET_POINTS_KEY = 'sapience_wallet_points_v1'
 export const PREDICTIONS_KEY   = 'sapience_v2_predictions'
 /** Keep in sync with `WALLET_START_PTS` in `graphql-persist.mjs` (leaderboard / DB). */
-export const BONUS_POINTS      = 1000
-export const PREDICTION_REWARD = 10
+export const BONUS_POINTS = 1000
 
 /** Net P&L vs starting bonus (every wallet begins at {@link BONUS_POINTS}). */
 export function walletNetProfit(account) {
@@ -132,6 +131,8 @@ export function applyPredictionBatch(address, stakePerPrediction, count) {
   ensureWalletBonus(key)
   const map     = readMap()
   const current = map[key]
+  const bal0    = Number(current.balance)
+  if (!Number.isFinite(bal0)) return { ok: false, reason: 'Invalid wallet balance.' }
 
   const stake            = Number(stakePerPrediction)
   const predictionsCount = Number(count)
@@ -139,17 +140,16 @@ export function applyPredictionBatch(address, stakePerPrediction, count) {
     return { ok: false, reason: 'Invalid stake or prediction count.' }
   }
 
-  const totalStake  = stake * predictionsCount
-  const totalReward = PREDICTION_REWARD * predictionsCount
-  const nextBalance = current.balance - totalStake + totalReward
+  const totalStake = stake * predictionsCount
+  const nextBalance = bal0 - totalStake
   if (nextBalance < 0) return { ok: false, reason: 'Insufficient points balance.' }
 
   const next = {
     ...current,
     balance         : nextBalance,
-    totalPredictions: current.totalPredictions + predictionsCount,
-    totalStaked     : current.totalStaked + totalStake,
-    totalRewards    : current.totalRewards + totalReward,
+    totalPredictions: Number(current.totalPredictions) + predictionsCount,
+    totalStaked     : Number(current.totalStaked) + totalStake,
+    totalRewards    : Number(current.totalRewards),
     updatedAt       : new Date().toISOString(),
   }
   map[key] = next
@@ -157,7 +157,7 @@ export function applyPredictionBatch(address, stakePerPrediction, count) {
   syncWallet(next)
   notifyPointsChanged()
 
-  return { ok: true, account: next, totalStake, totalReward }
+  return { ok: true, account: next, totalStake }
 }
 
 /**
