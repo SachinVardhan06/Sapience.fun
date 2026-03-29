@@ -14,7 +14,8 @@ import {
 } from '../../utils/pointsLedger'
 
 // ─── API endpoints ────────────────────────────────────────────────────────────
-const KALSHI_PROXY = 'http://localhost:3001/api/kalshi/markets?limit=50&status=open'
+const KALSHI_PROXY =
+  import.meta.env.VITE_KALSHI_PROXY_URL || 'http://localhost:3001/api/kalshi/markets?limit=50&status=open'
 const PAGE_SIZE    = 10
 const manifoldUrl  = (offset = 0) =>
   `https://api.manifold.markets/v0/search-markets?term=&limit=${PAGE_SIZE}&sort=liquidity&contractType=BINARY&filter=open&offset=${offset}`

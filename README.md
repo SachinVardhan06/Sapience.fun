@@ -1,6 +1,6 @@
 # Sapience.fun
 
-Prediction-style markets UI with wallet login, points ledger, leaderboard, and a small GraphQL API. Built for **[sapience.fun](https://sapience.fun)**.
+Prediction-style markets UI with wallet login, points ledger, leaderboard, and a small GraphQL API. The **app** (markets, BTC 5m, profile, leaderboard) is intended for **[app.sapience.fun](https://app.sapience.fun)**; marketing can live on the root domain.
 
 ## Features
 
@@ -75,8 +75,13 @@ See **`.env.example`**. Common entries:
 
 | Variable | Used by | Purpose |
 |----------|---------|---------|
-| `VITE_GQL_URL` | Vite client | GraphQL endpoint (default `http://localhost:4000/`). **Required in production** builds (e.g. `https://api.sapience.fun/graphql`). |
+| `VITE_APP_ORIGIN` | Vite client | Optional. Canonical site URL; defaults to `https://app.sapience.fun` in production builds if unset. |
+| `VITE_GQL_URL` | Vite client | GraphQL endpoint: dev default `http://localhost:4000/`. **Production:** `https://api.sapience.fun/` (POST to origin root). If omitted in prod build, client defaults to that URL. |
+| `VITE_KALSHI_PROXY_URL` | `market.jsx` | Full Kalshi markets URL. Dev default `http://localhost:3001/api/kalshi/...`. **Set in production** to your hosted proxy (same host as API or dedicated). |
 | `GQL_PORT` | `graphql-server.js` | Listen port (default `4000`). |
+| `DATABASE_URL` | `graphql-server.js` | **Recommended production:** PostgreSQL connection string. Tables auto-created; survives redeploys. Use provider backups. |
+| `DATABASE_SSL` | `graphql-server.js` | Set `0` or `false` for local Postgres without TLS (default: SSL on for remote). |
+| `SAPIENCE_DB_DIR` or `SAPIENCE_DB_PATH` | `graphql-persist.mjs` | **If no `DATABASE_URL`:** persistent path for `sapience-db.json` (e.g. Render Disk). |
 | `KALSHI_KEY_ID`, `KALSHI_PRIVATE_KEY` | `kalshi-proxy.cjs` | Kalshi signing (PEM with `\n` for newlines in `.env.local`). |
 
 Vite only exposes variables prefixed with **`VITE_`**.
@@ -85,6 +90,7 @@ Vite only exposes variables prefixed with **`VITE_`**.
 
 ```
 src/
+  config/         # site origin (app.sapience.fun)
   components/     # Trade navbar, beta banner, access modal, …
   context/        # walletAuth, theme
   hooks/          # useWalletBalance
@@ -94,7 +100,8 @@ src/
     profile/
     comingsoon/   # /access landing + MetaMask connect
   utils/          # pointsLedger, graphqlClient, accessGate
-graphql-server.js # Apollo + sapience-db.json
+graphql-server.js # Apollo
+graphql-persist.mjs # Postgres (DATABASE_URL) or JSON file
 kalshi-proxy.cjs  # Express proxy for Kalshi + Manifold helper routes
 ```
 
@@ -105,13 +112,21 @@ New wallets hitting **Markets** may be prompted for a **6-character** code once 
 - **Change the code** → `src/utils/accessGate.js` (`BETA_ACCESS_CODE`).
 - **Reset for testing** → remove `sapience_beta_access_wallets` in DevTools (or clear that key only).
 
-## Production build
+## Production build (app.sapience.fun)
+
+**Step-by-step (Netlify + Render + DNS):** see **[DEPLOY-EASY.md](./DEPLOY-EASY.md)**. **Durable user data:** see **[docs/DATA-RESILIENCE.md](./docs/DATA-RESILIENCE.md)** (Postgres vs disk).
+
+Host the built SPA at **`https://app.sapience.fun`** (DNS `CNAME` / custom domain on Netlify, Vercel, etc.). `vite.config.js` uses default `base: '/'`, which is correct for a subdomain root.
 
 ```bash
-VITE_GQL_URL=https://your-api.example.com/graphql npm run build
+VITE_GQL_URL=https://api.sapience.fun/ \
+VITE_KALSHI_PROXY_URL=https://your-proxy.example.com/api/kalshi/markets?limit=50&status=open \
+npm run build
 ```
 
-Deploy the **`dist/`** folder to your static host (Netlify, Vercel, Cloudflare Pages, etc.). Run **GraphQL** (and optional Kalshi proxy) on a server or PaaS; point `VITE_GQL_URL` at the public HTTPS URL.
+- **`VITE_APP_ORIGIN`** — optional; if omitted, production builds assume `https://app.sapience.fun` (see `src/config/site.js`).
+- Deploy the **`dist/`** folder to the **app** host.
+- Run **GraphQL** at **`https://api.sapience.fun/`** (custom domain on the same service that runs `node graphql-server.js`). Run the **Kalshi proxy** on the same host or another URL; allow **CORS** from `https://app.sapience.fun` if the browser reports blocked requests.
 
 ## License
 

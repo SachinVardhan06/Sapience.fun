@@ -26,6 +26,15 @@
       "totalRewards": 0,
       "createdAt": "2026-03-26T09:29:39.838Z",
       "updatedAt": "2026-03-26T17:32:03.500Z"
+    },
+    "0x0729f5383b3110d57416636d3804b17550b1e1bd": {
+      "address": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+      "balance": 1196,
+      "totalPredictions": 4,
+      "totalStaked": 520,
+      "totalRewards": 716,
+      "createdAt": "2026-03-29T04:59:10.439Z",
+      "updatedAt": "2026-03-29T05:00:01.046Z"
     }
   },
   "predictions": [
@@ -190,6 +199,15 @@
       "side": "UP",
       "points": 200,
       "createdAt": "2026-03-26T10:30:15.736Z"
+    },
+    {
+      "id": "btc5m-5915867-0x0729f5383b3110d57416636d3804b17550b1e1bd",
+      "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+      "marketId": "btc5m-5915867",
+      "marketTitle": "BTC 5m 04:55–05:00 UTC",
+      "side": "DOWN",
+      "points": 250,
+      "createdAt": "2026-03-29T04:59:10.490Z"
     }
   ]
 }

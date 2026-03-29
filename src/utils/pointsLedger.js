@@ -2,6 +2,7 @@ import { upsertWallet as gqlUpsertWallet, savePrediction as gqlSavePrediction } 
 
 export const WALLET_POINTS_KEY = 'sapience_wallet_points_v1'
 export const PREDICTIONS_KEY   = 'sapience_v2_predictions'
+/** Keep in sync with `WALLET_START_PTS` in `graphql-persist.mjs` (leaderboard / DB). */
 export const BONUS_POINTS      = 1000
 export const PREDICTION_REWARD = 10
 

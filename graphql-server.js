@@ -1,38 +1,25 @@
 /**
- * Sapience GraphQL Server — Apollo Server 4
+ * Sapience GraphQL Server — Apollo Server 5
  *
- * Dev:   http://localhost:4000/graphql
- * Prod:  http://api.sapience.fun/graphql  (set PORT=80 on your VPS)
+ * Dev:   http://localhost:4000/
+ * Prod:  **https://api.sapience.fun/** — attach this custom domain to the service running this file.
+ *
+ * Persistence (pick one for production safety):
+ * - **PostgreSQL** — set `DATABASE_URL` (e.g. Render Postgres). Survives redeploys; best long-term.
+ * - **JSON file** — default; use `SAPIENCE_DB_DIR` / `SAPIENCE_DB_PATH` on a persistent disk if no DB.
  *
  * Run standalone:  node graphql-server.js
  * Run with dev:    npm run dev  (concurrently handles it)
  */
 
-import { ApolloServer }       from '@apollo/server'
+import { ApolloServer } from '@apollo/server'
+import { ApolloServerPluginLandingPageProductionDefault } from '@apollo/server/plugin/landingPage/default'
 import { startStandaloneServer } from '@apollo/server/standalone'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { createServer as createNetServer } from 'net'
-import { join, dirname }      from 'path'
-import { fileURLToPath }      from 'url'
+import { createPersistence } from './graphql-persist.mjs'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const DB_FILE   = join(__dirname, 'sapience-db.json')
-/** Must match `BONUS_POINTS` in src/utils/pointsLedger.js */
-const WALLET_START_PTS = 1000
+const persistence = await createPersistence()
 
-// ─── JSON database ────────────────────────────────────────────────────────────
-function readDB() {
-  try {
-    if (existsSync(DB_FILE)) return JSON.parse(readFileSync(DB_FILE, 'utf8'))
-  } catch {}
-  return { wallets: {}, predictions: [] }
-}
-
-function writeDB(db) {
-  writeFileSync(DB_FILE, JSON.stringify(db, null, 2))
-}
-
-// ─── Schema (SDL) ─────────────────────────────────────────────────────────────
 const typeDefs = `#graphql
   type Wallet {
     address:          String!
@@ -87,68 +74,36 @@ const typeDefs = `#graphql
   }
 `
 
-// ─── Resolvers ────────────────────────────────────────────────────────────────
 const resolvers = {
   Query: {
     wallet(_, { address }) {
-      const db = readDB()
-      return db.wallets[address.toLowerCase()] ?? null
+      return persistence.getWallet(address)
     },
-
     wallets() {
-      const db = readDB()
-      return Object.values(db.wallets).sort((a, b) => {
-        const pa = (a.balance ?? 0) - WALLET_START_PTS
-        const pb = (b.balance ?? 0) - WALLET_START_PTS
-        if (pb !== pa) return pb - pa
-        return (b.balance ?? 0) - (a.balance ?? 0)
-      })
+      return persistence.listWallets()
     },
-
-    predictions(_, { wallet, limit }) {
-      const db  = readDB()
-      let rows  = db.predictions
-      if (wallet) rows = rows.filter(p => p.wallet === wallet.toLowerCase())
-      rows = rows.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      return limit ? rows.slice(0, limit) : rows
+    predictions(_, args) {
+      return persistence.listPredictions(args)
     },
   },
 
   Mutation: {
-    upsertWallet(_, { address, balance, totalPredictions, totalStaked, totalRewards }) {
-      const db  = readDB()
-      const key = address.toLowerCase()
-      const now = new Date().toISOString()
-      db.wallets[key] = {
-        address: key,
-        balance,
-        totalPredictions,
-        totalStaked,
-        totalRewards,
-        createdAt: db.wallets[key]?.createdAt ?? now,
-        updatedAt: now,
-      }
-      writeDB(db)
-      return db.wallets[key]
+    upsertWallet(_, args) {
+      return persistence.upsertWallet(args)
     },
-
-    savePrediction(_, { id, wallet, marketId, marketTitle, side, points }) {
-      const db  = readDB()
-      const key = wallet.toLowerCase()
-      if (!db.predictions.find(p => p.id === id)) {
-        db.predictions.push({
-          id, wallet: key, marketId, marketTitle, side, points,
-          createdAt: new Date().toISOString(),
-        })
-        writeDB(db)
-      }
-      return db.predictions.find(p => p.id === id)
+    savePrediction(_, args) {
+      return persistence.savePrediction(args)
     },
   },
 }
 
-// ─── Start ────────────────────────────────────────────────────────────────────
-const server = new ApolloServer({ typeDefs, resolvers })
+/** In production, default landing page is text-only; explicit plugin embeds Apollo Sandbox on GET /. */
+const plugins =
+  process.env.NODE_ENV === 'production'
+    ? [ApolloServerPluginLandingPageProductionDefault({ embed: true })]
+    : []
+
+const server = new ApolloServer({ typeDefs, resolvers, plugins })
 
 const PREFERRED = Number(process.env.GQL_PORT ?? 4000)
 
