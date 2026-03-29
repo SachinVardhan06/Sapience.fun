@@ -20,7 +20,7 @@ You will use:
 
 ## Simplified checklist — do these in order
 
-Goal: **UI** at `https://app.sapience.fun` · **GraphQL** at `https://api.sapience.fun/` (the app sends **POST** requests with JSON to that URL — no `/graphql` path).
+Goal: **UI** at `https://app.sapience.fun` · **GraphQL** at **`https://api.sapience.fun/graphql`** (POST JSON to that path; GET `/` on the API host redirects to `/graphql` for Sandbox).
 
 ### A. Run `node graphql-server.js` on Render (Web Service)
 
@@ -41,7 +41,7 @@ Goal: **UI** at `https://app.sapience.fun` · **GraphQL** at `https://api.sapien
 
 5. Scroll to **Environment** (or **Advanced**). Add variables if you use Postgres (see §1C below): **`DATABASE_URL`** = your Postgres connection string.  
 6. Click **Create Web Service**. Wait until status is **Live** (build + start can take a few minutes).  
-7. Note the temporary URL, e.g. `https://sapience-api.onrender.com` — GraphQL works at the **root** of that URL (same as local `http://localhost:4000/`).
+7. Note the temporary URL, e.g. `https://sapience-api.onrender.com` — GraphQL is at **`/graphql`** on that host (same as local `http://localhost:4000/graphql`; GET `/` redirects to `/graphql`).
 
 ### B. Add custom domain `api.sapience.fun` on Render
 
@@ -76,7 +76,7 @@ Goal: **UI** at `https://app.sapience.fun` · **GraphQL** at `https://api.sapien
    | **Publish directory** | `dist` |
 
 4. **Before** the first deploy, open **Show advanced** / **Environment variables** (or add them right after: **Site configuration → Environment variables**).  
-5. **GraphQL:** production builds **always** call **`https://api.sapience.fun/`** (`src/config/site.js` + `graphqlClient.js`). You do **not** need `VITE_GQL_URL` on Netlify. **Remove** it if it still points at an old host (e.g. `*.onrender.com`).
+5. **GraphQL:** production builds **always** POST to **`https://api.sapience.fun/graphql`** (`src/config/site.js` + `graphqlClient.js`). You do **not** need `VITE_GQL_URL` on Netlify. **Remove** it if it still points at an old host (e.g. `*.onrender.com`).
 
    Add for **Production** as needed:
 
@@ -101,8 +101,8 @@ Goal: **UI** at `https://app.sapience.fun` · **GraphQL** at `https://api.sapien
 
 ### F. Quick check
 
-- **`https://api.sapience.fun/`** in the browser may show nothing useful or an error for GET — **normal**. The app uses **POST**.  
-- Open **`https://app.sapience.fun`**, connect wallet, open **DevTools → Network**, confirm requests go to **`https://api.sapience.fun/`** and return **200** (not CORS errors).
+- **`https://api.sapience.fun/`** in the browser **redirects** to **`/graphql`** (Sandbox). The SPA uses **POST** to **`/graphql`**.
+- Open **`https://app.sapience.fun`**, connect wallet, open **DevTools → Network**, confirm GraphQL requests go to **`https://api.sapience.fun/graphql`** and return **200** (not CORS errors).
 
 ---
 
@@ -146,9 +146,9 @@ The React app calls this for wallets, leaderboard, predictions.
 | **CNAME** | `api` | *(what Render shows)* |
 
 5. Wait for DNS + SSL (often 5–30 minutes).  
-6. Your GraphQL URL is **`https://api.sapience.fun/`** (POST body, same as local Apollo — no `/graphql` path). The production SPA is wired to this URL in code.
+6. Your GraphQL URL is **`https://api.sapience.fun/graphql`** (POST JSON body — same path as local: **`http://localhost:4000/graphql`**). The production SPA is wired to this URL in code.
 
-**Check:** In browser open `https://api.sapience.fun/` — you may see a simple message or 400; that’s OK. The app uses **POST** with JSON.
+**Check:** In the browser open **`https://api.sapience.fun/graphql`** (or **`/`** on that host, which redirects) for Sandbox. The app uses **POST** with JSON.
 
 ### C. Keep user data after redeploy (do this)
 
@@ -223,7 +223,7 @@ If you skip this, **Manifold** markets can still work; Kalshi will fail until th
 | `VITE_KALSHI_PROXY_URL` | `https://YOUR-KALSHI-SERVICE.onrender.com/api/kalshi/markets?limit=50&status=open` *(or your real proxy URL)* |
 | `VITE_APP_ORIGIN` | `https://app.sapience.fun` *(optional)* |
 
-*(GraphQL uses **`https://api.sapience.fun/`** in production builds automatically — do not set `VITE_GQL_URL` unless you use it for local dev in `.env.local`.)*
+*(GraphQL uses **`https://api.sapience.fun/graphql`** in production builds automatically — do not set `VITE_GQL_URL` unless you use it for local dev in `.env.local`.)*
 
 6. **Save**, then **Deploy site** (or **Trigger deploy** → **Clear cache and deploy** if you already deployed).
 
@@ -266,7 +266,7 @@ Netlify/Vercel **rebuild** the site after you change `VITE_*` variables (they ar
 1. Open **`https://app.sapience.fun`**.  
 2. **Connect wallet** → go to **Markets** (`/prediction`).  
 3. Open **DevTools → Network**:  
-   - Requests to **`https://api.sapience.fun/`** (GraphQL POST) should be **200** (not blocked by CORS).  
+   - Requests to **`https://api.sapience.fun/graphql`** (GraphQL POST) should be **200** (not blocked by CORS).  
    - Kalshi request should hit your **`VITE_KALSHI_PROXY_URL`** if you use Kalshi.  
 4. If you see **CORS errors**, the API must allow your app origin. Apollo’s standalone server uses `cors` with permissive defaults; if you put a reverse proxy in front, add headers there.
 

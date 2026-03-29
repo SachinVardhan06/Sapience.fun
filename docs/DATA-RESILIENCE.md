@@ -1,6 +1,6 @@
 # Storing user data safely (now → long term)
 
-**API host:** run GraphQL at **`https://api.sapience.fun/`** (DNS `api` → your Node host). The production SPA on **`https://app.sapience.fun`** calls that URL directly (see `src/utils/graphqlClient.js`); `VITE_GQL_URL` is for local dev only (`.env.example`).
+**API host:** run GraphQL at **`https://api.sapience.fun/graphql`** (DNS `api` → your Node host under **sapience.fun**). The production SPA on **`https://app.sapience.fun`** POSTs there (see `src/utils/graphqlClient.js`); `VITE_GQL_URL` is for local dev only (`.env.example`).
 
 This app keeps **two layers** of data:
 

@@ -1,8 +1,8 @@
 /**
  * Sapience GraphQL Server — Apollo Server 5
  *
- * Dev:   http://localhost:4000/
- * Prod:  **https://api.sapience.fun/** — attach this custom domain to the service running this file.
+ * Dev:   http://localhost:4000/graphql  (GET / redirects here)
+ * Prod:  **https://api.sapience.fun/graphql** — attach **api.sapience.fun** to this service.
  *
  * Persistence (pick one for production safety):
  * - **PostgreSQL** — set `DATABASE_URL` (e.g. Render Postgres). Survives redeploys; best long-term.
@@ -17,11 +17,32 @@
  * Show Mutation in Sandbox again: GQL_SHOW_MUTATIONS_IN_INTROSPECTION=true
  */
 
-import { ApolloServer } from '@apollo/server'
+import { ApolloServer, HeaderMap } from '@apollo/server'
 import { ApolloServerPluginLandingPageProductionDefault } from '@apollo/server/plugin/landingPage/default'
-import { startStandaloneServer } from '@apollo/server/standalone'
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer'
+import bodyParser from 'body-parser'
+import { parse as parseContentType } from 'content-type'
+import cors from 'cors'
+import finalhandler from 'finalhandler'
+import http from 'http'
 import { createServer as createNetServer } from 'net'
+import { parse as urlParse } from 'url'
 import { createPersistence } from './graphql-persist.mjs'
+
+const validCharset = /^utf-(8|((16|32)(le|be)?))$/i
+
+/** HTTP path for GraphQL (must match production URL path). Override with GQL_HTTP_PATH=/other */
+const GQL_HTTP_PATH = (process.env.GQL_HTTP_PATH || '/graphql').replace(/\/+$/, '') || '/graphql'
+
+function normalizeReqPath(reqUrl) {
+  const pathname = urlParse(reqUrl).pathname || '/'
+  if (pathname.length > 1 && pathname.endsWith('/')) return pathname.slice(0, -1)
+  return pathname
+}
+
+function isGraphQLHttpPath(reqUrl) {
+  return normalizeReqPath(reqUrl) === GQL_HTTP_PATH
+}
 
 const persistence = await createPersistence()
 
@@ -183,17 +204,104 @@ async function pickListenPort(preferred) {
 
 const PORT = await pickListenPort(PREFERRED)
 
-const { url } = await startStandaloneServer(server, {
-  listen: { port: PORT },
-  context: async () => ({}),
+const corsHandler = cors()
+const jsonHandler = bodyParser.json({
+  verify(req) {
+    const charset = parseContentType(req).parameters.charset || 'utf-8'
+    if (!charset.match(validCharset)) {
+      throw Object.assign(new Error(`unsupported charset "${charset.toUpperCase()}"`), {
+        status: 415,
+        name: 'UnsupportedMediaTypeError',
+        charset,
+        type: 'charset.unsupported',
+      })
+    }
+  },
+  limit: '50mb',
 })
 
-console.log(`[apollo] GraphQL server ready at ${url}`)
+const httpServer = http.createServer((req, res) => {
+  const errorHandler = finalhandler(req, res, {
+    onerror(err) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.error(err.stack || err.toString())
+      }
+    },
+  })
+
+  if (!isGraphQLHttpPath(req.url)) {
+    if (req.method === 'GET' && normalizeReqPath(req.url) === '/') {
+      res.writeHead(302, { Location: GQL_HTTP_PATH })
+      res.end()
+      return
+    }
+    res.statusCode = 404
+    res.setHeader('content-type', 'text/plain; charset=utf-8')
+    res.end('Not found')
+    return
+  }
+
+  corsHandler(req, res, (err) => {
+    if (err) {
+      errorHandler(err)
+      return
+    }
+    jsonHandler(req, res, (err2) => {
+      if (err2) {
+        errorHandler(err2)
+        return
+      }
+      const headers = new HeaderMap()
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (value !== undefined) {
+          headers.set(key, Array.isArray(value) ? value.join(', ') : value)
+        }
+      }
+      const httpGraphQLRequest = {
+        method: req.method.toUpperCase(),
+        headers,
+        search: urlParse(req.url).search ?? '',
+        body: 'body' in req ? req.body : undefined,
+      }
+      server
+        .executeHTTPGraphQLRequest({
+          httpGraphQLRequest,
+          context: async () => ({}),
+        })
+        .then(async (httpGraphQLResponse) => {
+          for (const [key, value] of httpGraphQLResponse.headers) {
+            res.setHeader(key, value)
+          }
+          res.statusCode = httpGraphQLResponse.status || 200
+          if (httpGraphQLResponse.body.kind === 'complete') {
+            res.end(httpGraphQLResponse.body.string)
+            return
+          }
+          for await (const chunk of httpGraphQLResponse.body.asyncIterator) {
+            res.write(chunk)
+          }
+          res.end()
+        })
+        .catch((e) => {
+          errorHandler(e)
+        })
+    })
+  })
+})
+
+server.addPlugin(ApolloServerPluginDrainHttpServer({ httpServer }))
+await server.start()
+await new Promise((resolve) => {
+  httpServer.listen({ port: PORT }, resolve)
+})
+
+const localUrl = `http://127.0.0.1:${PORT}${GQL_HTTP_PATH}`
+console.log(`[apollo] GraphQL server ready at ${localUrl}`)
 if (mutationsDisabled) {
   console.warn('[apollo] Mutations are OFF (GQL_DISABLE_MUTATIONS=true). SPA wallet/prediction sync will fail until unset.')
 }
 if (PORT !== PREFERRED) {
   console.warn(
-    `[apollo] Using port ${PORT} instead of ${PREFERRED}. Set VITE_GQL_URL=http://localhost:${PORT}/ in .env.local so the React app hits this server.`,
+    `[apollo] Using port ${PORT} instead of ${PREFERRED}. Set VITE_GQL_URL=http://localhost:${PORT}${GQL_HTTP_PATH} in .env.local so the React app hits this server.`,
   )
 }

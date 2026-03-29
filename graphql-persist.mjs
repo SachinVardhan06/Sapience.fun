@@ -1,6 +1,6 @@
 /**
  * GraphQL persistence: PostgreSQL (production) or JSON file (local dev).
- * Deploy the API process at **https://api.sapience.fun/** (custom domain on your host).
+ * Deploy the API process at **https://api.sapience.fun/graphql** (custom domain **api.sapience.fun**).
  * Keep in sync with BONUS_POINTS in src/utils/pointsLedger.js
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'

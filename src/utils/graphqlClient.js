@@ -1,18 +1,27 @@
 /**
  * Minimal fetch-based GraphQL client.
- * Production builds always POST to {@link DEFAULT_GQL_URL_PROD} (https://api.sapience.fun/) so
- * the live site is not overridden by a stale CI env (e.g. an old onrender URL).
- * Local dev: set VITE_GQL_URL or default http://localhost:4000/ (POST to /, no /graphql).
+ * Production builds always POST to {@link DEFAULT_GQL_URL_PROD} (https://api.sapience.fun/graphql).
+ * Local dev: `VITE_GQL_URL` optional (base or full URL; `/graphql` is appended if missing). Default port 4000.
  */
 
 import { DEFAULT_GQL_URL_PROD } from '../config/site.js'
 
+/** POST must go to `…/graphql` (same as `graphql-server.js` GQL_HTTP_PATH). Accepts base URL or full endpoint. */
+function normalizeGqlHttpUrl(raw) {
+  const u = String(raw).trim().replace(/\/+$/, '')
+  if (!u) return u
+  if (/\/graphql$/i.test(u)) return u
+  return `${u}/graphql`
+}
+
 const rawGql = import.meta.env.VITE_GQL_URL
-const GQL_URL = import.meta.env.DEV
-  ? (typeof rawGql === 'string' && rawGql.trim() !== ''
+const GQL_URL = normalizeGqlHttpUrl(
+  import.meta.env.DEV
+    ? typeof rawGql === 'string' && rawGql.trim() !== ''
       ? rawGql.trim()
-      : 'http://localhost:4000/')
-  : DEFAULT_GQL_URL_PROD
+      : 'http://localhost:4000'
+    : DEFAULT_GQL_URL_PROD,
+)
 
 async function gql(query, variables = {}) {
   const res = await fetch(GQL_URL, {
