@@ -103,7 +103,15 @@ const plugins =
     ? [ApolloServerPluginLandingPageProductionDefault({ embed: true })]
     : []
 
-const server = new ApolloServer({ typeDefs, resolvers, plugins })
+/** Apollo defaults introspection to off in production; Sandbox needs it to load the schema. Set GQL_DISABLE_INTROSPECTION=true to turn off. */
+const introspection = process.env.GQL_DISABLE_INTROSPECTION !== 'true'
+
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  plugins,
+  introspection,
+})
 
 const PREFERRED = Number(process.env.GQL_PORT ?? 4000)
 
