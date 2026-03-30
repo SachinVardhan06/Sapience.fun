@@ -50,6 +50,44 @@ function mapPredictionRow(row) {
   }
 }
 
+function normalizePrivateMarketDoc(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const stakes = Array.isArray(raw.stakes) ? raw.stakes : []
+  const now = new Date().toISOString()
+  return {
+    id: String(raw.id),
+    code: String(raw.code || '').toUpperCase(),
+    creator: String(raw.creator || '').toLowerCase(),
+    title: String(raw.title || ''),
+    description: String(raw.description || ''),
+    seedPoints: Number(raw.seedPoints) || 0,
+    createdAt: raw.createdAt || now,
+    updatedAt: raw.updatedAt || raw.createdAt || now,
+    closesAt: raw.closesAt ?? null,
+    status: raw.status || 'open',
+    outcome: raw.outcome ?? null,
+    resolvedAt: raw.resolvedAt ?? null,
+    inviteCodeRequired: raw.inviteCodeRequired === true,
+    stakes: stakes.map((s) => ({
+      id: String(s.id),
+      wallet: String(s.wallet || '').toLowerCase(),
+      side: String(s.side),
+      points: Number(s.points) || 0,
+      createdAt: s.createdAt || now,
+    })),
+  }
+}
+
+async function ensurePrivateMarketsPgSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS private_markets (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      body JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`)
+}
+
 async function ensurePgSchema(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS wallets (
@@ -78,11 +116,15 @@ async function ensurePgSchema(pool) {
 function createFilePersistence(dbFile) {
   function readDB() {
     try {
-      if (existsSync(dbFile)) return JSON.parse(readFileSync(dbFile, 'utf8'))
+      if (existsSync(dbFile)) {
+        const db = JSON.parse(readFileSync(dbFile, 'utf8'))
+        if (!Array.isArray(db.privateMarkets)) db.privateMarkets = []
+        return db
+      }
     } catch {
       /* ignore */
     }
-    return { wallets: {}, predictions: [] }
+    return { wallets: {}, predictions: [], privateMarkets: [] }
   }
 
   function writeDB(db) {
@@ -148,6 +190,35 @@ function createFilePersistence(dbFile) {
         writeDB(db)
       }
       return db.predictions.find((p) => p.id === id)
+    },
+    async listPrivateMarkets({ status }) {
+      const db = readDB()
+      let rows = (db.privateMarkets || []).map((m) => normalizePrivateMarketDoc(m)).filter(Boolean)
+      if (status) rows = rows.filter((m) => m.status === status)
+      return rows.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    },
+    async getPrivateMarketByCode(code) {
+      const c = String(code || '').trim().toUpperCase()
+      if (!c) return null
+      const db = readDB()
+      const raw = (db.privateMarkets || []).find((m) => String(m.code).toUpperCase() === c)
+      return raw ? normalizePrivateMarketDoc(raw) : null
+    },
+    async upsertPrivateMarket(market) {
+      const db = readDB()
+      if (!Array.isArray(db.privateMarkets)) db.privateMarkets = []
+      const m = normalizePrivateMarketDoc(market)
+      if (!m) throw new Error('Invalid private market payload')
+      const conflict = db.privateMarkets.find(
+        (x) => String(x.code).toUpperCase() === m.code && String(x.id) !== m.id,
+      )
+      if (conflict) throw new Error('Invite code already in use')
+      m.updatedAt = m.updatedAt || new Date().toISOString()
+      const i = db.privateMarkets.findIndex((x) => String(x.id) === m.id)
+      if (i >= 0) db.privateMarkets[i] = m
+      else db.privateMarkets.push(m)
+      writeDB(db)
+      return m
     },
   }
 }
@@ -230,6 +301,40 @@ function createPgPersistence(connectionString) {
       const { rows } = await pool.query('SELECT * FROM predictions WHERE id = $1', [id])
       return mapPredictionRow(rows[0])
     },
+    async listPrivateMarkets({ status }) {
+      const { rows } = await pool.query(
+        'SELECT body FROM private_markets ORDER BY updated_at DESC',
+      )
+      let list = rows.map((r) => normalizePrivateMarketDoc(r.body)).filter(Boolean)
+      if (status) list = list.filter((m) => m.status === status)
+      return list
+    },
+    async getPrivateMarketByCode(code) {
+      const c = String(code || '').trim().toUpperCase()
+      if (!c) return null
+      const { rows } = await pool.query('SELECT body FROM private_markets WHERE code = $1', [c])
+      return rows[0] ? normalizePrivateMarketDoc(rows[0].body) : null
+    },
+    async upsertPrivateMarket(market) {
+      const m = normalizePrivateMarketDoc(market)
+      if (!m) throw new Error('Invalid private market payload')
+      const { rows: conflict } = await pool.query(
+        'SELECT id FROM private_markets WHERE code = $1 AND id <> $2',
+        [m.code, m.id],
+      )
+      if (conflict.length) throw new Error('Invite code already in use')
+      m.updatedAt = m.updatedAt || new Date().toISOString()
+      await pool.query(
+        `INSERT INTO private_markets (id, code, body, updated_at)
+         VALUES ($1, $2, $3::jsonb, $4::timestamptz)
+         ON CONFLICT (id) DO UPDATE SET
+           code = EXCLUDED.code,
+           body = EXCLUDED.body,
+           updated_at = EXCLUDED.updated_at`,
+        [m.id, m.code, JSON.stringify(m), m.updatedAt],
+      )
+      return m
+    },
   }
 }
 
@@ -241,6 +346,7 @@ export async function createPersistence() {
   if (dbUrl) {
     const store = createPgPersistence(dbUrl)
     await ensurePgSchema(store.pool)
+    await ensurePrivateMarketsPgSchema(store.pool)
     console.log('[apollo] Persistence: PostgreSQL (DATABASE_URL)')
     return store
   }

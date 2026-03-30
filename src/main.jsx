@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import './index.css'
 
 // Avoid light/dark flash: apply saved theme before first paint (ThemeProvider syncs after)
@@ -16,15 +16,18 @@ import BuySapienceCoin from './pages/buy/market.jsx'
 import Btc5MinMarket from './pages/buy/5minmarket.jsx'
 import LeaderboardPage from './pages/leaderboard/leaderboard.jsx'
 import ProfilePage from './pages/profile/profile.jsx'
+import PrivateArena from './pages/private/PrivateArena.jsx'
 import { WalletAuthProvider, useWalletAuth } from './context/walletAuth.jsx'
 import { ThemeProvider } from './context/themeContext.jsx'
 import BetaBanner from './components/BetaBanner.jsx'
 
 function ProtectedRoute({ children }) {
   const { isConnected, isAuthReady } = useWalletAuth()
+  const location = useLocation()
   if (!isAuthReady) {
     return (
       <main
+        id="main-content"
         className="grid place-items-center antialiased"
         style={{
           boxSizing: 'border-box',
@@ -39,7 +42,7 @@ function ProtectedRoute({ children }) {
     )
   }
   if (!isConnected) {
-    return <Navigate to="/access" replace />
+    return <Navigate to="/access" replace state={{ from: location }} />
   }
   return children
 }
@@ -50,6 +53,9 @@ createRoot(document.getElementById('root')).render(
     <WalletAuthProvider>
       <BrowserRouter>
         <BetaBanner />
+        <a href="#main-content" className="skip-to-main">
+          Skip to main content
+        </a>
         <Routes>
           <Route path="/access" element={<App />} />
           <Route
@@ -82,6 +88,14 @@ createRoot(document.getElementById('root')).render(
             element={
               <ProtectedRoute>
                 <LeaderboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/private-arena"
+            element={
+              <ProtectedRoute>
+                <PrivateArena />
               </ProtectedRoute>
             }
           />

@@ -104,6 +104,7 @@ export default function ProfilePage() {
 
   return (
     <main
+      id="main-content"
       className="relative overflow-y-auto antialiased"
       style={{
         boxSizing: 'border-box',

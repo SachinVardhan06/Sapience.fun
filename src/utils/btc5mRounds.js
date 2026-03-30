@@ -17,6 +17,11 @@ export function winReturnMultFromTimeLeft(untilEndMs) {
 }
 export const BTC5M_ROUNDS_KEY = 'btc5m_rounds_v1'
 export const BTC5M_PICKS_KEY = 'btc5m_picks_v1'
+/** Offline cache of settled UP/DOWN/PUSH per slot (for “last windows” UI). */
+export const BTC5M_OUTCOMES_KEY = 'btc5m_window_outcomes_v1'
+
+const PUSH_EPS_OUTCOME = 0.01
+const WINDOW_OUTCOMES_MAX = 400
 
 export function slotIdFromTime(t = Date.now()) {
   return Math.floor(t / BTC5M_WINDOW_MS)
@@ -65,6 +70,67 @@ export function readPicks() {
 export function writePicks(picks) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(BTC5M_PICKS_KEY, JSON.stringify(picks))
+}
+
+/** @returns {Record<string, { outcome: 'UP'|'DOWN'|'PUSH', savedAt: string }>} */
+export function readWindowOutcomes() {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(BTC5M_OUTCOMES_KEY)
+    const o = raw ? JSON.parse(raw) : {}
+    return o && typeof o === 'object' ? o : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeWindowOutcomes(map) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(BTC5M_OUTCOMES_KEY, JSON.stringify(map))
+}
+
+/**
+ * Persist a settled window outcome locally (survives refresh / app close).
+ * @returns {boolean} true if storage was updated
+ */
+export function saveWindowOutcome(slotId, outcome) {
+  if (outcome !== 'UP' && outcome !== 'DOWN' && outcome !== 'PUSH') return false
+  const sk = String(slotId)
+  const map = readWindowOutcomes()
+  if (map[sk]?.outcome === outcome) return false
+  map[sk] = { outcome, savedAt: new Date().toISOString() }
+  const keys = Object.keys(map)
+  if (keys.length > WINDOW_OUTCOMES_MAX) {
+    const sorted = [...keys].sort(
+      (a, b) => new Date(map[a].savedAt).getTime() - new Date(map[b].savedAt).getTime(),
+    )
+    for (let i = 0; i < keys.length - WINDOW_OUTCOMES_MAX; i++) delete map[sorted[i]]
+  }
+  writeWindowOutcomes(map)
+  return true
+}
+
+function outcomeFromRoundRow(row) {
+  const o = row?.open
+  const c = row?.close
+  if (o == null || c == null || !Number.isFinite(o) || !Number.isFinite(c)) return null
+  if (Math.abs(c - o) < PUSH_EPS_OUTCOME) return 'PUSH'
+  return c > o ? 'UP' : 'DOWN'
+}
+
+/**
+ * Backfill outcome cache from existing round rows (open+close) after upgrade or offline use.
+ * @returns {number} number of newly written slots
+ */
+export function migrateWindowOutcomesFromRounds() {
+  if (typeof window === 'undefined') return 0
+  const rounds = readRounds()
+  let n = 0
+  for (const sk of Object.keys(rounds)) {
+    const oc = outcomeFromRoundRow(rounds[sk])
+    if (oc && saveWindowOutcome(sk, oc)) n += 1
+  }
+  return n
 }
 
 const fetchOpts = {

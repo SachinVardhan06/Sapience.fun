@@ -7,9 +7,12 @@ import {
   BTC5M_WINDOW_MS,
   connectCoinbaseBtcTicker,
   fetchBtcUsd,
+  migrateWindowOutcomesFromRounds,
   msUntilSlotEnd,
   readPicks,
   readRounds,
+  readWindowOutcomes,
+  saveWindowOutcome,
   slotEndMs,
   slotIdFromTime,
   slotStartMs,
@@ -55,8 +58,14 @@ function outcomeFromOpenClose(open, close) {
   return close > open ? 'UP' : 'DOWN'
 }
 
-function slotOutcomeFromStorage(slotId, roundsMap, picksList) {
+function isBtc5mPick(p) {
+  return typeof p?.id === 'string' && p.id.startsWith('btc5m-')
+}
+
+function slotOutcomeFromStorage(slotId, offlineOutcomes, roundsMap, picksList) {
   const sk = String(slotId)
+  const cached = offlineOutcomes[sk]?.outcome
+  if (cached === 'UP' || cached === 'DOWN' || cached === 'PUSH') return cached
   const row = roundsMap[sk]
   const oc = outcomeFromOpenClose(row?.open, row?.close)
   if (oc) return oc
@@ -96,7 +105,7 @@ function BtcLivePriceFull({ liveBtc, openPrice, priceError, lastUpdatedMs, strea
             Live BTC/USD
           </span>
         </div>
-        <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-[10px] tabular-nums sm:text-[11px]" style={{ color: 'var(--text-secondary)' }}>
           {streamConnected ? 'WebSocket · Coinbase ticker' : 'Connecting stream…'}
           {lastUpdatedMs
             ? ` · ${new Date(lastUpdatedMs).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
@@ -117,7 +126,7 @@ function BtcLivePriceFull({ liveBtc, openPrice, priceError, lastUpdatedMs, strea
 
       <div className="mt-3 flex flex-wrap items-end justify-center gap-x-6 gap-y-2 border-t pt-3 text-center" style={{ borderColor: 'var(--border-subtle)' }}>
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider sm:text-[11px]" style={{ color: 'var(--text-secondary)' }}>
             Window open anchor
           </p>
           <p className="font-mono text-base font-bold tabular-nums sm:text-lg" style={{ color: '#facc15' }}>
@@ -126,7 +135,7 @@ function BtcLivePriceFull({ liveBtc, openPrice, priceError, lastUpdatedMs, strea
         </div>
         {diff != null ? (
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider sm:text-[11px]" style={{ color: 'var(--text-secondary)' }}>
               vs anchor
             </p>
             <p
@@ -143,7 +152,9 @@ function BtcLivePriceFull({ liveBtc, openPrice, priceError, lastUpdatedMs, strea
         ) : null}
       </div>
 
-      {priceError ? <p className="mt-2 text-center text-[10px] text-rose-400">{priceError}</p> : null}
+      {priceError ? (
+        <p className="mt-2 text-center text-[11px] font-medium leading-snug text-rose-300 sm:text-xs">{priceError}</p>
+      ) : null}
     </div>
   )
 }
@@ -164,6 +175,8 @@ export default function Btc5MinMarket() {
   const [notice, setNotice] = useState({ text: '', ok: true })
   const [payoutFlash, setPayoutFlash] = useState(null)
   const picksRef = useRef(null)
+  /** Bumps when offline outcome cache is backfilled so we re-read localStorage. */
+  const [outcomesRev, setOutcomesRev] = useState(0)
 
   const slot = useMemo(() => slotIdFromTime(now), [now])
   const untilEnd = useMemo(() => msUntilSlotEnd(now), [now])
@@ -239,6 +252,11 @@ export default function Btc5MinMarket() {
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
 
+  /** Backfill offline window outcomes from older round rows (upgrade / offline-only data). */
+  useEffect(() => {
+    if (migrateWindowOutcomesFromRounds() > 0) setOutcomesRev((v) => v + 1)
+  }, [])
+
   /** Sync rounds from storage when slot changes (e.g. other tab). */
   useEffect(() => {
     setRounds(readRounds())
@@ -309,6 +327,8 @@ export default function Btc5MinMarket() {
         if (Math.abs(c - o) < PUSH_EPS_USD) outcome = 'PUSH'
         else if (c > o) outcome = 'UP'
         else outcome = 'DOWN'
+
+        saveWindowOutcome(s, outcome)
 
         let list = readPicks()
         const hadPending = list.some((pick) => pick.slotId === s && pick.status === 'pending')
@@ -413,6 +433,10 @@ export default function Btc5MinMarket() {
     return picks.filter((p) => p.slotId === slot).reduce((sum, p) => sum + (Number(p.stake) || 0), 0)
   }, [picks, slot])
 
+  const offlineWindowOutcomes = useMemo(() => readWindowOutcomes(), [rounds, picks, outcomesRev])
+
+  const hasPlayedBtc5mOnDevice = useMemo(() => picks.some(isBtc5mPick), [picks])
+
   const lastFiveWindows = useMemo(() => {
     const rows = []
     for (let i = 1; i <= 5; i++) {
@@ -420,11 +444,11 @@ export default function Btc5MinMarket() {
       rows.push({
         slotId: sid,
         label: utcRangeLabel(sid),
-        outcome: slotOutcomeFromStorage(sid, rounds, picks),
+        outcome: slotOutcomeFromStorage(sid, offlineWindowOutcomes, rounds, picks),
       })
     }
     return rows
-  }, [rounds, picks, slot])
+  }, [rounds, picks, slot, offlineWindowOutcomes])
 
   const placePick = async (side) => {
     if (!walletAddress || busy || locked || myPickThisSlot) return
@@ -484,6 +508,7 @@ export default function Btc5MinMarket() {
 
   return (
     <main
+      id="main-content"
       className="relative flex flex-col overscroll-none antialiased"
       style={{
         boxSizing: 'border-box',
@@ -516,7 +541,7 @@ export default function Btc5MinMarket() {
         <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden px-3 pb-2 pt-1 sm:px-4">
           <div className="mb-1 shrink-0 text-center">
             <p
-              className="netlifypixel text-[9px] font-black uppercase tracking-[0.2em]"
+              className="netlifypixel text-[10px] font-black uppercase tracking-[0.2em] sm:text-[11px]"
               style={{ color: 'var(--accent-text)' }}
             >
               {BTC5M_WINDOW_MS / 60_000}m · UTC · time-weighted win
@@ -537,22 +562,22 @@ export default function Btc5MinMarket() {
               }}
             >
               <p
-                className="mb-2 shrink-0 text-[10px] font-bold uppercase tracking-wider"
+                className="mb-2 shrink-0 text-[11px] font-bold uppercase tracking-wider sm:text-xs"
                 style={{ color: 'var(--accent-text)' }}
               >
                 Recent trades
               </p>
               {!walletAddress ? (
-                <p className="text-[10px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>
                   Connect wallet to see your history.
                 </p>
               ) : recentPicks.length === 0 ? (
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                   No picks yet.
                 </p>
               ) : (
                 <ul
-                  className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5 text-[10px] sm:text-[11px]"
+                  className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5 text-[11px] sm:text-xs"
                   style={{ scrollbarGutter: 'stable' }}
                 >
                   {recentPicks.map((p) => (
@@ -573,7 +598,7 @@ export default function Btc5MinMarket() {
                                 ? 'var(--accent-text)'
                                 : p.status === 'lost'
                                   ? '#f87171'
-                                  : 'var(--text-muted)',
+                                  : 'var(--text-secondary)',
                           }}
                         >
                           {p.status}
@@ -601,18 +626,18 @@ export default function Btc5MinMarket() {
             >
             <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
               <div>
-                <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                   Current window
                 </p>
                 <p className="text-base font-bold tabular-nums sm:text-lg" style={{ color: 'var(--text-heading)' }}>
                   {utcRangeLabel(slot)}
                 </p>
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-[11px] tabular-nums" style={{ color: 'var(--text-secondary)' }}>
                   #{slot}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                   Closes
                 </p>
                 <p
@@ -625,7 +650,9 @@ export default function Btc5MinMarket() {
                 >
                   {formatCountdown(untilEnd)}
                 </p>
-                {locked ? <p className="text-[10px] text-rose-400">Locked</p> : null}
+                {locked ? (
+                  <p className="text-[11px] font-semibold text-rose-300 sm:text-xs">Locked</p>
+                ) : null}
               </div>
             </div>
 
@@ -642,7 +669,7 @@ export default function Btc5MinMarket() {
             {payoutFlash ? (
               <div
                 key={payoutFlash.key}
-                className="shrink-0 rounded-lg border px-2 py-1.5 text-center text-[11px] font-semibold leading-snug"
+                className="shrink-0 rounded-lg border px-2 py-1.5 text-center text-[12px] font-semibold leading-snug sm:text-[13px]"
                 style={{
                   borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)',
                   background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
@@ -656,13 +683,14 @@ export default function Btc5MinMarket() {
             ) : null}
 
             <p
-              className="shrink-0 text-[10px] leading-snug"
-              style={{ borderColor: 'var(--border-g)', color: 'var(--text-muted)' }}
+              className="shrink-0 text-[11px] leading-relaxed sm:text-xs"
+              style={{ borderColor: 'var(--border-g)', color: 'var(--text-body)' }}
             >
               <span className="font-semibold" style={{ color: 'var(--accent-text)' }}>Win</span> ~{liveWinTotalPts} pts
-              <span className="opacity-80"> (+{liveWinProfitPts} net · {liveWinMult.toFixed(2)}×)</span> — drops as time
-              runs out · <span className="text-amber-200/90">Push</span> {stakeNum} ·{' '}
-              <span className="text-rose-300">Lose</span> 0
+              <span style={{ color: 'var(--text-secondary)' }}> (+{liveWinProfitPts} net · {liveWinMult.toFixed(2)}×)</span>{' '}
+              — drops as time runs out ·{' '}
+              <span className="font-semibold text-amber-300">Push</span> {stakeNum} ·{' '}
+              <span className="font-semibold text-rose-300">Lose</span> 0
             </p>
 
             <div className="flex shrink-0 items-end gap-2">
@@ -670,7 +698,7 @@ export default function Btc5MinMarket() {
                 Stake points
               </label>
               <div className="min-w-0 flex-1">
-                <span className="mb-0.5 block text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                <span className="mb-0.5 block text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
                   Stake
                 </span>
                 <input
@@ -696,7 +724,7 @@ export default function Btc5MinMarket() {
                 type="button"
                 disabled={!walletAddress || busy || locked || myPickThisSlot || roundOpen == null}
                 onClick={() => placePick('UP')}
-                className="group relative h-8 w-full min-w-0 shrink-0 cursor-pointer border-none bg-transparent p-0 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40 sm:h-9"
+                className="group relative h-8 w-full min-w-0 shrink-0 cursor-pointer border-none bg-transparent p-0 text-[11px] font-black disabled:cursor-not-allowed disabled:opacity-40 sm:h-9 sm:text-xs"
               >
                 <span className="absolute inset-0 translate-y-[2px] rounded bg-[#0a7a12] transition-transform duration-200 ease-out group-hover:translate-y-[3px] group-active:translate-y-px group-disabled:translate-y-[2px]" />
                 <span className="absolute inset-0 rounded bg-[#0da91f]" />
@@ -704,7 +732,11 @@ export default function Btc5MinMarket() {
                   className="relative flex h-full -translate-y-[2px] items-center justify-center rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px group-disabled:translate-y-0"
                   style={{
                     background: myPickThisSlot?.side === 'UP' ? '#13f227' : 'var(--yes-inactive)',
-                    color: '#08240e',
+                    color: myPickThisSlot?.side === 'UP' ? '#052209' : 'var(--text-heading)',
+                    textShadow:
+                      myPickThisSlot?.side === 'UP'
+                        ? 'none'
+                        : '0 0 12px color-mix(in srgb, var(--bg-page) 80%, transparent), 0 1px 0 rgba(0,0,0,0.35)',
                   }}
                 >
                   UP
@@ -715,27 +747,28 @@ export default function Btc5MinMarket() {
                 type="button"
                 disabled={!walletAddress || busy || locked || myPickThisSlot || roundOpen == null}
                 onClick={() => placePick('DOWN')}
-                className="group relative h-8 w-full min-w-0 shrink-0 cursor-pointer border-none bg-transparent p-0 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40 sm:h-9"
+                className="group relative h-8 w-full min-w-0 shrink-0 cursor-pointer border-none bg-transparent p-0 text-[11px] font-black disabled:cursor-not-allowed disabled:opacity-40 sm:h-9 sm:text-xs"
               >
                 <span className="absolute inset-0 translate-y-[2px] rounded bg-[#7a0a0a] transition-transform duration-200 ease-out group-hover:translate-y-[3px] group-active:translate-y-px group-disabled:translate-y-[2px]" />
                 <span className="absolute inset-0 rounded bg-[#b91c1c]" />
                 <span
-                  className="relative flex h-full -translate-y-[2px] items-center justify-center rounded text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px group-disabled:translate-y-0"
+                  className="relative flex h-full -translate-y-[2px] items-center justify-center rounded font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px group-disabled:translate-y-0"
                   style={{
-                    background: myPickThisSlot?.side === 'DOWN' ? '#ef4444' : 'rgba(239,68,68,0.5)',
+                    background: myPickThisSlot?.side === 'DOWN' ? '#ef4444' : 'rgba(239,68,68,0.55)',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                   }}
                 >
                   DOWN
                 </span>
               </button>
             </div>
-            <p className="shrink-0 text-center text-[9px] leading-tight" style={{ color: 'var(--text-muted)' }}>
+            <p className="shrink-0 text-center text-[11px] leading-snug sm:text-xs" style={{ color: 'var(--text-secondary)' }}>
               UP/DOWN · win ~{liveWinTotalPts} pts now (+{liveWinProfitPts} net) — earlier in the window = more points
             </p>
 
             <div className="shrink-0 space-y-1">
               {!walletAddress ? (
-                <p className="text-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-center text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
                   Connect wallet to play.
                 </p>
               ) : null}
@@ -751,11 +784,16 @@ export default function Btc5MinMarket() {
                 </p>
               ) : null}
               {notice.text ? (
-                <p className={`text-center text-[11px] leading-tight ${notice.ok ? '' : 'text-rose-400'}`}>{notice.text}</p>
+                <p
+                  className={`text-center text-[11px] font-medium leading-snug sm:text-xs ${notice.ok ? '' : 'text-rose-300'}`}
+                  style={notice.ok ? { color: 'var(--text-body)' } : undefined}
+                >
+                  {notice.text}
+                </p>
               ) : null}
             </div>
 
-            <p className="shrink-0 pt-1 text-center text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <p className="shrink-0 pt-1 text-center text-[11px] sm:text-xs" style={{ color: 'var(--text-secondary)' }}>
               <span className="netlifypixel font-black tabular-nums" style={{ color: 'var(--accent-text)' }}>
                 {walletPts.toLocaleString()}
               </span>{' '}
@@ -763,7 +801,7 @@ export default function Btc5MinMarket() {
               {walletShort ? (
                 <>
                   {' '}
-                  · {walletShort}
+                  · <span style={{ color: 'var(--text-body)' }}>{walletShort}</span>
                 </>
               ) : null}
             </p>
@@ -779,7 +817,7 @@ export default function Btc5MinMarket() {
               }}
             >
               <p
-                className="mb-2 shrink-0 text-[10px] font-bold uppercase tracking-wider"
+                className="mb-2 shrink-0 text-[11px] font-bold uppercase tracking-wider sm:text-xs"
                 style={{ color: 'var(--accent-text)' }}
               >
                 Current window volume
@@ -789,40 +827,46 @@ export default function Btc5MinMarket() {
                 style={{ color: 'var(--text-heading)' }}
               >
                 {currentSlotTotalVolume.toLocaleString()}{' '}
-                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                   pts staked
                 </span>
               </p>
               <p
-                className="mb-1.5 shrink-0 border-t pt-2 text-[10px] font-bold uppercase tracking-wider"
+                className="mb-1.5 shrink-0 border-t pt-2 text-[11px] font-bold uppercase tracking-wider sm:text-xs"
                 style={{ borderColor: 'var(--border-subtle)', color: 'var(--accent-text)' }}
               >
                 Last 5 windows
               </p>
-              <ul
-                className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5 text-[10px] sm:text-[11px]"
-                style={{ scrollbarGutter: 'stable' }}
-              >
-                {lastFiveWindows.map((w) => {
-                  const oc = w.outcome
-                  const color =
-                    oc === 'UP' ? '#4ade80' : oc === 'DOWN' ? '#f87171' : oc === 'PUSH' ? '#fbbf24' : 'var(--text-muted)'
-                  return (
-                    <li
-                      key={w.slotId}
-                      className="flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5"
-                      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-glass)' }}
-                    >
-                      <span className="min-w-0 truncate font-mono text-[9px]" style={{ color: 'var(--text-secondary)' }}>
-                        {w.label}
-                      </span>
-                      <span className="shrink-0 font-black tabular-nums" style={{ color }}>
-                        {oc ?? '—'}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
+              {!hasPlayedBtc5mOnDevice ? (
+                <p className="text-[11px] leading-relaxed sm:text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Place your first 5m trade to unlock this feed. Results are saved on this device only (offline-friendly).
+                </p>
+              ) : (
+                <ul
+                  className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5 text-[11px] sm:text-xs"
+                  style={{ scrollbarGutter: 'stable' }}
+                >
+                  {lastFiveWindows.map((w) => {
+                    const oc = w.outcome
+                    const color =
+                      oc === 'UP' ? '#4ade80' : oc === 'DOWN' ? '#f87171' : oc === 'PUSH' ? '#fbbf24' : 'var(--text-secondary)'
+                    return (
+                      <li
+                        key={w.slotId}
+                        className="flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5"
+                        style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-glass)' }}
+                      >
+                        <span className="min-w-0 truncate font-mono text-[10px] sm:text-[11px]" style={{ color: 'var(--text-body)' }}>
+                          {w.label}
+                        </span>
+                        <span className="shrink-0 font-black tabular-nums" style={{ color }}>
+                          {oc ?? '—'}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </aside>
           </div>
         </div>

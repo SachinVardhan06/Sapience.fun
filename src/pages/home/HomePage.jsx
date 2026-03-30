@@ -43,21 +43,31 @@ const FEATURES = [
     title: 'Prediction markets',
     body: 'Browse live-style questions, stake points on YES or NO, and track outcomes as the crowd moves.',
     tag: 'Markets',
+    to: '/prediction',
   },
   {
     title: 'BTC 5-minute windows',
     body: 'Short rounds against a UTC anchor price—UP or DOWN—with live Coinbase stream and time-weighted payouts.',
     tag: 'Fast',
+    to: '/btc-5m',
   },
   {
     title: 'Profit leaderboard',
     body: 'Rankings by net P&L vs your starting bonus—not just who sits on the biggest balance.',
     tag: 'Social',
+    to: '/leaderboard',
   },
   {
     title: 'Points wallet',
     body: 'Every wallet gets starter points on-chain vibes, locally—predict, win, and climb without gas on reads.',
     tag: 'Wallet',
+    to: '/profile',
+  },
+  {
+    title: 'Private rooms',
+    body: 'Spin up a friends-only question, share a short code, and split a pot with your own points—host resolves when you’re ready.',
+    tag: 'Crew',
+    to: '/private-arena',
   },
 ]
 
@@ -65,7 +75,7 @@ const FLOW_STEPS = [
   { n: '01', title: 'Connect', body: 'MetaMask in one tap—your address becomes your Sapience identity.' },
   { n: '02', title: 'Stake points', body: 'Use starter bonus + winnings. Every pick moves your P&L, not just a static balance.' },
   { n: '03', title: 'Resolve & rank', body: 'Markets settle into wins, pushes, or lessons. Leaderboard sorts by profit.' },
-  { n: '04', title: 'Go deeper', body: 'BTC 5m for pulse trades, profile for history, Discord for the crew.' },
+  { n: '04', title: 'Go deeper', body: 'BTC 5m for pulse trades, private rooms for your group chat, profile for history.' },
 ]
 
 const FAQ = [
@@ -93,14 +103,26 @@ const CLOSING_CARDS = [
     to: '/leaderboard',
     tag: 'Rank',
   },
+  {
+    title: 'Private rooms',
+    body: 'Your question, your seed pool, your invite code—compete with people you trust.',
+    to: '/private-arena',
+    tag: 'Host',
+  },
 ]
 
 const STATS = [
   { label: 'Starter stack', value: '1,000', unit: 'pts' },
   { label: 'BTC window', value: '5', unit: 'min' },
   { label: 'Max win curve', value: '2×', unit: 'early' },
-  { label: 'Venues', value: '2+', unit: 'modes' },
+  { label: 'Venues', value: '3+', unit: 'modes' },
 ]
+
+/** When not connected, send users to /access with return path so post-wallet redirect hits the right screen. */
+function linkToProtectedTarget(path, isConnected) {
+  if (isConnected) return { to: path }
+  return { to: '/access', state: { from: { pathname: path } } }
+}
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -151,6 +173,7 @@ export default function HomePage() {
 
   return (
     <main
+      id="main-content"
       ref={mainRef}
       className="home-root home-root-scroll relative h-[100dvh] overflow-x-hidden overflow-y-auto overscroll-y-contain antialiased"
       style={{
@@ -467,6 +490,15 @@ export default function HomePage() {
                 <p className="mt-2 text-sm leading-relaxed sm:text-[15px]" style={{ color: 'var(--text-secondary)' }}>
                   {f.body}
                 </p>
+                {f.to ? (
+                  <Link
+                    {...linkToProtectedTarget(f.to, isConnected)}
+                    className="mt-4 inline-block text-sm font-bold no-underline"
+                    style={{ color: 'var(--accent-text)' }}
+                  >
+                    {isConnected ? 'Open →' : 'Connect to open →'}
+                  </Link>
+                ) : null}
                 <div
                   className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
                   style={{ background: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}
@@ -477,7 +509,7 @@ export default function HomePage() {
 
           <div
             id="arena"
-            className="home-reveal mx-auto mt-24 grid max-w-5xl scroll-mt-28 gap-5 lg:grid-cols-2 sm:mt-32"
+            className="home-reveal mx-auto mt-24 grid max-w-5xl scroll-mt-28 gap-5 sm:mt-32 lg:grid-cols-3"
           >
             <div
               className="rounded-2xl border p-8 sm:p-10"
@@ -496,7 +528,7 @@ export default function HomePage() {
                 Filter, batch-stake, and feel the tape. Built for scanning many questions—not just one ticker.
               </p>
               <Link
-                to={isConnected ? '/prediction' : '/access'}
+                {...linkToProtectedTarget('/prediction', isConnected)}
                 className="mt-6 inline-block text-sm font-bold no-underline"
                 style={{ color: 'var(--accent-text)' }}
               >
@@ -520,11 +552,36 @@ export default function HomePage() {
                 Five-minute epochs, live WebSocket price, payouts that reward early conviction in the window.
               </p>
               <Link
-                to={isConnected ? '/btc-5m' : '/access'}
+                {...linkToProtectedTarget('/btc-5m', isConnected)}
                 className="mt-6 inline-block text-sm font-bold no-underline"
                 style={{ color: 'var(--accent-text)' }}
               >
                 Open BTC 5m →
+              </Link>
+            </div>
+            <div
+              className="rounded-2xl border p-8 sm:p-10"
+              style={{
+                borderColor: 'var(--border-g)',
+                background: 'linear-gradient(145deg, var(--bg-glass2) 0%, var(--accent-panel) 100%)',
+              }}
+            >
+              <p className="m-0 text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--accent-label)' }}>
+                Arena C
+              </p>
+              <h3 className="mt-2 text-2xl font-bold" style={{ color: 'var(--text-heading)' }}>
+                Private competitions
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                Like group-chat markets: you set the question, lock a seed pool in points, and share one link. Friends pick
+                YES or NO; you resolve when it’s time.
+              </p>
+              <Link
+                {...linkToProtectedTarget('/private-arena', isConnected)}
+                className="mt-6 inline-block text-sm font-bold no-underline"
+                style={{ color: 'var(--accent-text)' }}
+              >
+                Open private rooms →
               </Link>
             </div>
           </div>
@@ -598,7 +655,7 @@ export default function HomePage() {
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                 <Link
-                  to={isConnected ? '/prediction' : '/access'}
+                  {...linkToProtectedTarget('/prediction', isConnected)}
                   className="rounded-xl px-6 py-3 text-sm font-bold no-underline sm:text-base"
                   style={{
                     background: 'var(--accent)',
@@ -630,11 +687,11 @@ export default function HomePage() {
           <h2 id="home-closing-cards-heading" className="sr-only">
             Jump back in
           </h2>
-          <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-3 sm:gap-5">
+          <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
             {CLOSING_CARDS.map((c) => (
               <Link
                 key={c.title}
-                to={isConnected ? c.to : '/access'}
+                {...linkToProtectedTarget(c.to, isConnected)}
                 className="home-closing-card group relative overflow-hidden rounded-2xl border p-6 no-underline transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 sm:p-8"
                 style={{
                   borderColor: 'var(--border-g)',

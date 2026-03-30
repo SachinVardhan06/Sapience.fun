@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import bgVideo from '../../assets/sapience.fun.mp4'
 import sapienceLogo from '../../assets/sapiencelogo.jpeg'
 import { useWalletAuth } from '../../context/walletAuth'
@@ -53,16 +53,25 @@ function DiscordIcon() {
   )
 }
 
+function safeReturnPath(from) {
+  if (!from || typeof from.pathname !== 'string') return '/prediction'
+  const path = `${from.pathname}${from.search || ''}${from.hash || ''}`
+  if (!path.startsWith('/') || path.startsWith('//')) return '/prediction'
+  return path
+}
+
 function WelcomePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { connectWallet, isConnecting, isConnected, authError, clearAuthError } = useWalletAuth()
   const [muted, setMuted] = useState(true)
 
   useEffect(() => {
     if (isConnected) {
-      navigate('/prediction', { replace: true })
+      const target = safeReturnPath(location.state?.from)
+      navigate(target, { replace: true })
     }
-  }, [isConnected, navigate])
+  }, [isConnected, navigate, location.state])
 
   const handleConnectWallet = async () => {
     if (isConnecting) return
@@ -72,9 +81,12 @@ function WelcomePage() {
 
   return (
     <main
-      className="relative overflow-hidden bg-black text-[#d9e5df] antialiased"
+      id="main-content"
+      className="relative overflow-hidden antialiased"
       style={{
         boxSizing: 'border-box',
+        background: '#09090b',
+        color: 'var(--text-body)',
         height: '100dvh',
         paddingTop: 'var(--beta-banner-height, 0px)',
       }}

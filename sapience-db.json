@@ -20,21 +20,21 @@
     },
     "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5": {
       "address": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
-      "balance": 994,
-      "totalPredictions": 8,
-      "totalStaked": 500,
-      "totalRewards": 494,
+      "balance": 340,
+      "totalPredictions": 7,
+      "totalStaked": 1160,
+      "totalRewards": 0,
       "createdAt": "2026-03-26T09:29:39.838Z",
-      "updatedAt": "2026-03-29T17:25:20.527Z"
+      "updatedAt": "2026-03-30T15:39:24.038Z"
     },
     "0x0729f5383b3110d57416636d3804b17550b1e1bd": {
       "address": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
-      "balance": 1196,
-      "totalPredictions": 4,
-      "totalStaked": 520,
-      "totalRewards": 716,
+      "balance": 343,
+      "totalPredictions": 5,
+      "totalStaked": 657,
+      "totalRewards": 0,
       "createdAt": "2026-03-29T04:59:10.439Z",
-      "updatedAt": "2026-03-29T05:00:01.046Z"
+      "updatedAt": "2026-03-30T15:40:13.297Z"
     }
   },
   "predictions": [
@@ -280,6 +280,194 @@
       "side": "UP",
       "points": 100,
       "createdAt": "2026-03-29T17:25:20.536Z"
+    },
+    {
+      "id": "btc5m-5916159-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5916159",
+      "marketTitle": "BTC 5m 05:15–05:20 UTC",
+      "side": "UP",
+      "points": 25,
+      "createdAt": "2026-03-30T05:15:02.687Z"
+    },
+    {
+      "id": "btc5m-5916272-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5916272",
+      "marketTitle": "BTC 5m 14:40–14:45 UTC",
+      "side": "UP",
+      "points": 25,
+      "createdAt": "2026-03-30T14:40:26.135Z"
+    },
+    {
+      "id": "1774881712845-1-e3242868",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "zIjFL4cxLmRUbeRKdgCh",
+      "marketTitle": "🇧🇷 President in Jan 2027 is Lula, or whoever he endorses / Lula ou seu indicado é presidente em janeiro de 2027",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-30T14:41:52.881Z"
+    },
+    {
+      "id": "1774881712845-0-0ab7e99e",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "2tEzuphRlP",
+      "marketTitle": "Will AI be capable of producing an Annals-quality math paper for $100k by March 2030?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-30T14:41:52.887Z"
+    },
+    {
+      "id": "1774881712845-2-037ed236",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "A319ydGB1B7f4PMOROL3",
+      "marketTitle": "In early 2028, will an AI be able to generate a full high-quality movie to a prompt?",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-30T14:41:52.891Z"
+    },
+    {
+      "id": "1774881765328-0-596fd45f",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "nChh5Pzzsy",
+      "marketTitle": "Will Trump finish his second term?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-30T14:42:45.354Z"
+    },
+    {
+      "id": "pm-1774882512951-ggpl3drt-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5-1774883883462-8wfbnd",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "private-pm-1774882512951-ggpl3drt",
+      "marketTitle": "[Private] Hello alex",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-30T15:18:03.502Z"
+    },
+    {
+      "id": "pm-1774883042240-4xuek7zb-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5-1774883883465-ldhuoa",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "private-pm-1774883042240-4xuek7zb",
+      "marketTitle": "[Private] hello alex",
+      "side": "NO",
+      "points": 10,
+      "createdAt": "2026-03-30T15:18:03.520Z"
+    },
+    {
+      "id": "pm-1774885035202-nncks0v5-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885067424-nue2dz",
+      "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+      "marketId": "private-pm-1774885035202-nncks0v5",
+      "marketTitle": "[Private] Wil alex won the match",
+      "side": "YES",
+      "points": 50,
+      "createdAt": "2026-03-30T15:37:47.455Z"
+    },
+    {
+      "id": "pm-1774885035202-nncks0v5-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885096017-uau6i3",
+      "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+      "marketId": "private-pm-1774885035202-nncks0v5",
+      "marketTitle": "[Private] Wil alex won the match",
+      "side": "NO",
+      "points": 5,
+      "createdAt": "2026-03-30T15:38:16.083Z"
+    },
+    {
+      "id": "pm-1774885035202-nncks0v5-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885102989-8lu7ua",
+      "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+      "marketId": "private-pm-1774885035202-nncks0v5",
+      "marketTitle": "[Private] Wil alex won the match",
+      "side": "NO",
+      "points": 500,
+      "createdAt": "2026-03-30T15:38:23.024Z"
+    },
+    {
+      "id": "pm-1774885035202-nncks0v5-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885108469-xxgiw6",
+      "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+      "marketId": "private-pm-1774885035202-nncks0v5",
+      "marketTitle": "[Private] Wil alex won the match",
+      "side": "NO",
+      "points": 52,
+      "createdAt": "2026-03-30T15:38:28.498Z"
+    },
+    {
+      "id": "pm-1774885164032-o02n46pj-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885213275-dclcek",
+      "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+      "marketId": "private-pm-1774885164032-o02n46pj",
+      "marketTitle": "[Private] alexz",
+      "side": "YES",
+      "points": 50,
+      "createdAt": "2026-03-30T15:40:13.324Z"
+    }
+  ],
+  "privateMarkets": [
+    {
+      "id": "pm-1774885035202-nncks0v5",
+      "code": "FK97LN",
+      "creator": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "title": "Wil alex won the match",
+      "description": "",
+      "seedPoints": 25,
+      "createdAt": "2026-03-30T15:37:15.202Z",
+      "updatedAt": "2026-03-30T15:38:38.341Z",
+      "closesAt": null,
+      "status": "resolved",
+      "outcome": "YES",
+      "resolvedAt": "2026-03-30T15:38:38.341Z",
+      "inviteCodeRequired": true,
+      "stakes": [
+        {
+          "id": "pm-1774885035202-nncks0v5-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885067424-nue2dz",
+          "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+          "side": "YES",
+          "points": 50,
+          "createdAt": "2026-03-30T15:37:47.424Z"
+        },
+        {
+          "id": "pm-1774885035202-nncks0v5-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885096017-uau6i3",
+          "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+          "side": "NO",
+          "points": 5,
+          "createdAt": "2026-03-30T15:38:16.017Z"
+        },
+        {
+          "id": "pm-1774885035202-nncks0v5-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885102989-8lu7ua",
+          "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+          "side": "NO",
+          "points": 500,
+          "createdAt": "2026-03-30T15:38:22.989Z"
+        },
+        {
+          "id": "pm-1774885035202-nncks0v5-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885108469-xxgiw6",
+          "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+          "side": "NO",
+          "points": 52,
+          "createdAt": "2026-03-30T15:38:28.469Z"
+        }
+      ]
+    },
+    {
+      "id": "pm-1774885164032-o02n46pj",
+      "code": "G6HN2B",
+      "creator": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "title": "alexz",
+      "description": "",
+      "seedPoints": 250,
+      "createdAt": "2026-03-30T15:39:24.032Z",
+      "updatedAt": "2026-03-30T15:40:13.275Z",
+      "closesAt": null,
+      "status": "open",
+      "outcome": null,
+      "resolvedAt": null,
+      "inviteCodeRequired": false,
+      "stakes": [
+        {
+          "id": "pm-1774885164032-o02n46pj-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885213275-dclcek",
+          "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
+          "side": "YES",
+          "points": 50,
+          "createdAt": "2026-03-30T15:40:13.275Z"
+        }
+      ]
     }
   ]
 }

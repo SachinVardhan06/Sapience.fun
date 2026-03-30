@@ -87,6 +87,7 @@ export default function LeaderboardPage() {
 
   return (
     <main
+      id="main-content"
       className="relative overflow-y-auto antialiased"
       style={{
         boxSizing: 'border-box',

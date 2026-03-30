@@ -102,6 +102,32 @@ const typeDefs = `#graphql
     createdAt:   String!
   }
 
+  type PrivateStake {
+    id:        ID!
+    wallet:    String!
+    side:      String!
+    points:    Int!
+    createdAt: String!
+  }
+
+  type PrivateMarket {
+    id:          ID!
+    code:        String!
+    creator:     String!
+    title:       String!
+    description: String!
+    seedPoints:  Int!
+    createdAt:   String!
+    updatedAt:   String!
+    closesAt:    String
+    status:      String!
+    outcome:     String
+    resolvedAt:  String
+    "When true, room is hidden from the public Markets list; join only via code or link."
+    inviteCodeRequired: Boolean
+    stakes:      [PrivateStake!]!
+  }
+
   type Query {
     "Get a single wallet by address"
     wallet(address: String!): Wallet
@@ -111,6 +137,20 @@ const typeDefs = `#graphql
 
     "Predictions — optionally filtered by wallet address"
     predictions(wallet: String, limit: Int): [Prediction!]!
+
+    "All private competition markets (optional status: open | resolved)"
+    privateMarkets(status: String): [PrivateMarket!]!
+
+    "Single private market by invite code"
+    privateMarketByCode(code: String!): PrivateMarket
+  }
+
+  input PrivateStakeInput {
+    id:        ID!
+    wallet:    String!
+    side:      String!
+    points:    Int!
+    createdAt: String!
   }
 ${
   mutationsDisabled
@@ -135,6 +175,24 @@ ${
       side:        String!
       points:      Int!
     ): Prediction!
+
+    "Create or replace a private market (full document — keep in sync with clients)"
+    syncPrivateMarket(
+      id:          ID!
+      code:        String!
+      creator:     String!
+      title:       String!
+      description: String!
+      seedPoints:  Int!
+      createdAt:   String!
+      updatedAt:   String!
+      closesAt:    String
+      status:      String!
+      outcome:     String
+      resolvedAt:  String
+      inviteCodeRequired: Boolean
+      stakes:      [PrivateStakeInput!]!
+    ): PrivateMarket!
   }
 `
 }
@@ -151,6 +209,12 @@ const resolvers = {
     predictions(_, args) {
       return persistence.listPredictions(args)
     },
+    privateMarkets(_, args) {
+      return persistence.listPrivateMarkets(args)
+    },
+    privateMarketByCode(_, { code }) {
+      return persistence.getPrivateMarketByCode(code)
+    },
   },
   ...(mutationsDisabled
     ? {}
@@ -161,6 +225,31 @@ const resolvers = {
           },
           savePrediction(_, args) {
             return persistence.savePrediction(args)
+          },
+          syncPrivateMarket(_, args) {
+            const stakes = (args.stakes || []).map((s) => ({
+              id: s.id,
+              wallet: s.wallet,
+              side: s.side,
+              points: s.points,
+              createdAt: s.createdAt,
+            }))
+            return persistence.upsertPrivateMarket({
+              id: args.id,
+              code: args.code,
+              creator: args.creator,
+              title: args.title,
+              description: args.description,
+              seedPoints: args.seedPoints,
+              createdAt: args.createdAt,
+              updatedAt: args.updatedAt,
+              closesAt: args.closesAt,
+              status: args.status,
+              outcome: args.outcome,
+              resolvedAt: args.resolvedAt,
+              inviteCodeRequired: args.inviteCodeRequired === true,
+              stakes,
+            })
           },
         },
       }),

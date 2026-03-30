@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import TradeNavbar from '../../components/tradeNavbar'
 import { useWalletAuth } from '../../context/walletAuth'
 import sapienceLogo from '../../assets/sapiencelogo.jpeg'
@@ -13,6 +14,37 @@ import {
   mergeWalletRecords,
   recordPrediction,
 } from '../../utils/pointsLedger'
+import {
+  PRIVATE_ACCESS_CODE_MAX,
+  PRIVATE_ACCESS_CODE_MIN,
+  PRIVATE_MIN_STAKE as PRIVATE_MARKET_MIN_STAKE,
+  fetchAndMergePrivateMarketByCode,
+  hydratePrivateMarkets,
+  listOpenPrivateMarketsPublic,
+  normalizeAccessCode,
+  privateMarketToFeedRow,
+  stakePrivateMarket,
+} from '../../utils/privateMarkets'
+
+const PRIVATE_MARKET_UNLOCK_KEY = 'sapience_private_market_unlock_v1'
+
+function readPrivateUnlockIds() {
+  try {
+    const raw = sessionStorage.getItem(PRIVATE_MARKET_UNLOCK_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    return new Set(Array.isArray(arr) ? arr.filter((id) => typeof id === 'string') : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function writePrivateUnlockIds(set) {
+  try {
+    sessionStorage.setItem(PRIVATE_MARKET_UNLOCK_KEY, JSON.stringify([...set]))
+  } catch {
+    /* ignore */
+  }
+}
 
 // ─── API endpoints ────────────────────────────────────────────────────────────
 const KALSHI_PROXY =
@@ -87,7 +119,16 @@ const FALLBACK = [
 ]
 
 function catColor(cat) {
-  const map = { Politics:'#ef4444', Crypto:'#f59e0b', Sports:'#3b82f6', Tech:'#8b5cf6', Finance:'#06b6d4', Geopolitics:'#f97316', Entertainment:'#ec4899' }
+  const map = {
+    Politics: '#ef4444',
+    Crypto: '#f59e0b',
+    Sports: '#3b82f6',
+    Tech: '#8b5cf6',
+    Finance: '#06b6d4',
+    Geopolitics: '#f97316',
+    Entertainment: '#ec4899',
+    Private: '#a855f7',
+  }
   return map[cat] || '#6b7280'
 }
 
@@ -101,6 +142,7 @@ export default function PredictionMarket() {
   const [apiError,     setApiError]     = useState(null)
   const [isLive,       setIsLive]       = useState(false)
   const [sourceLabel,  setSourceLabel]  = useState('Demo')
+  const [feedSource,   setFeedSource]   = useState('manifold')
   const [lastUpdated,  setLastUpdated]  = useState(null)
   const [offset,       setOffset]       = useState(0)
   const [hasMore,      setHasMore]      = useState(true)
@@ -119,6 +161,9 @@ export default function PredictionMarket() {
   const [walletPts,    setWalletPts]    = useState(BONUS_POINTS)
   const [selections,   setSelections]   = useState({})
   const [basket,       setBasket]       = useState([])
+  const [privateUnlocked, setPrivateUnlocked] = useState(() => readPrivateUnlockIds())
+  const [privateCodeDraft, setPrivateCodeDraft] = useState({})
+  const [privateUnlockErr, setPrivateUnlockErr] = useState({})
   const [history,      setHistory]      = useState(() => {
     try { const r = localStorage.getItem(PREDICTIONS_KEY); return r ? JSON.parse(r) : [] }
     catch { return [] }
@@ -157,40 +202,95 @@ export default function PredictionMarket() {
   }, [walletAddress])
 
   const fetchMarkets = useCallback(async () => {
-    setLoading(true); setApiError(null); setOffset(0); setHasMore(true)
-    try {
-      const r = await fetch(KALSHI_PROXY)
-      if (r.ok) {
-        const json = await r.json()
-        const rows = (Array.isArray(json) ? json : (json.markets || [])).map(transformKalshi).filter(Boolean)
-        if (rows.length) {
-          setMarkets(rows); setIsLive(true); setSourceLabel('Kalshi')
-          setLastUpdated(new Date()); setHasMore(false); setLoading(false); return
-        }
+    setLoading(true)
+    setApiError(null)
+    setOffset(0)
+    setHasMore(true)
+
+    if (feedSource === 'private') {
+      if (walletAddress) ensureWalletBonus(walletAddress)
+      try {
+        await hydratePrivateMarkets()
+        setApiError(null)
+      } catch (e) {
+        setApiError(
+          `Private API unreachable — showing rooms saved on this device only. (${e instanceof Error ? e.message : 'network'})`,
+        )
       }
-    } catch { /* fall through */ }
+      const rows = listOpenPrivateMarketsPublic().map(privateMarketToFeedRow)
+      setMarkets(rows)
+      setIsLive(true)
+      setSourceLabel('Private')
+      setLastUpdated(new Date())
+      setHasMore(false)
+      setLoading(false)
+      return
+    }
+
+    if (feedSource === 'kalshi') {
+      try {
+        const r = await fetch(KALSHI_PROXY)
+        if (r.ok) {
+          const json = await r.json()
+          const rows = (Array.isArray(json) ? json : (json.markets || [])).map(transformKalshi).filter(Boolean)
+          if (rows.length) {
+            setMarkets(rows)
+            setIsLive(true)
+            setSourceLabel('Kalshi')
+            setLastUpdated(new Date())
+            setHasMore(false)
+            setLoading(false)
+            return
+          }
+        }
+        setApiError('Kalshi unavailable — showing demo markets.')
+        setMarkets(FALLBACK)
+        setIsLive(false)
+        setSourceLabel('Demo')
+        setHasMore(false)
+      } catch {
+        setApiError('Kalshi unavailable — showing demo markets.')
+        setMarkets(FALLBACK)
+        setIsLive(false)
+        setSourceLabel('Demo')
+        setHasMore(false)
+      }
+      setLoading(false)
+      return
+    }
+
+    // Manifold
     try {
       const r = await fetch(manifoldUrl(0))
       if (!r.ok) throw new Error(`HTTP ${r.status}`)
       const data = await r.json()
       const rows = (Array.isArray(data) ? data : []).map(transformManifold).filter(Boolean)
       if (rows.length) {
-        setMarkets(rows); setIsLive(true); setSourceLabel('Manifold')
-        setLastUpdated(new Date()); setOffset(PAGE_SIZE)
+        setMarkets(rows)
+        setIsLive(true)
+        setSourceLabel('Manifold')
+        setLastUpdated(new Date())
+        setOffset(PAGE_SIZE)
         setHasMore(rows.length === PAGE_SIZE)
       } else {
         setApiError('No markets returned — showing demo data.')
+        setMarkets(FALLBACK)
+        setIsLive(false)
+        setSourceLabel('Demo')
         setHasMore(false)
       }
     } catch {
       setApiError('Live data unavailable — showing demo markets.')
-      setIsLive(false); setSourceLabel('Demo'); setHasMore(false)
+      setMarkets(FALLBACK)
+      setIsLive(false)
+      setSourceLabel('Demo')
+      setHasMore(false)
     }
     setLoading(false)
-  }, [])
+  }, [feedSource, walletAddress])
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || sourceLabel !== 'Manifold') return
+    if (loadingMore || !hasMore || feedSource !== 'manifold') return
     setLoadingMore(true)
     try {
       const r = await fetch(manifoldUrl(offset))
@@ -209,9 +309,45 @@ export default function PredictionMarket() {
       }
     } catch { setHasMore(false) }
     setLoadingMore(false)
-  }, [loadingMore, hasMore, sourceLabel, offset])
+  }, [loadingMore, hasMore, feedSource, offset])
 
   useEffect(() => { fetchMarkets() }, [fetchMarkets])
+
+  useEffect(() => {
+    if (feedSource !== 'private') return
+    const bump = () => {
+      void hydratePrivateMarkets().then(() => {
+        setMarkets(listOpenPrivateMarketsPublic().map(privateMarketToFeedRow))
+      })
+    }
+    window.addEventListener(POINTS_CHANGED_EVENT, bump)
+    return () => window.removeEventListener(POINTS_CHANGED_EVENT, bump)
+  }, [feedSource])
+
+  useEffect(() => {
+    if (feedSource !== 'private') return
+    setPrivateUnlocked(readPrivateUnlockIds())
+  }, [feedSource])
+
+  useEffect(() => {
+    if (feedSource !== 'private') return
+    setBasket((b) => {
+      const filtered = b.filter((r) => !r.isPrivate || privateUnlocked.has(r.id))
+      return filtered.length === b.length ? b : filtered
+    })
+    setSelections((s) => {
+      const next = { ...s }
+      let changed = false
+      for (const id of Object.keys(next)) {
+        const row = markets.find((m) => m.id === id)
+        if (row?.source === 'private' && !privateUnlocked.has(id)) {
+          delete next[id]
+          changed = true
+        }
+      }
+      return changed ? next : s
+    })
+  }, [feedSource, privateUnlocked, markets])
 
   const tabs = useMemo(() => ['All', ...new Set(markets.map(m => m.category))], [markets])
 
@@ -240,7 +376,43 @@ export default function PredictionMarket() {
     return () => observer.disconnect()
   }, [loadMore, loading, hasMore, filteredRows.length])
 
-  const pick = (marketId, side, title) => {
+  const tryUnlockPrivateOnMarket = async (m) => {
+    const raw = privateCodeDraft[m.id] ?? ''
+    const norm = normalizeAccessCode(raw)
+    if (!norm) {
+      setPrivateUnlockErr((e) => ({
+        ...e,
+        [m.id]: `Enter ${PRIVATE_ACCESS_CODE_MIN}–${PRIVATE_ACCESS_CODE_MAX} characters (room invite code).`,
+      }))
+      return
+    }
+    const expected = String(m.slug || '').toUpperCase()
+    if (norm !== expected) {
+      setPrivateUnlockErr((e) => ({ ...e, [m.id]: 'Wrong code for this room.' }))
+      return
+    }
+    const merged = await fetchAndMergePrivateMarketByCode(norm)
+    if (!merged) {
+      setPrivateUnlockErr((e) => ({
+        ...e,
+        [m.id]: 'Could not load this room (offline or invalid).',
+      }))
+      return
+    }
+    setPrivateUnlocked((prev) => {
+      const next = new Set(prev)
+      next.add(m.id)
+      writePrivateUnlockIds(next)
+      return next
+    })
+    setPrivateUnlockErr((e) => {
+      const { [m.id]: _, ...rest } = e
+      return rest
+    })
+  }
+
+  const pick = (marketId, side, title, isPrivate = false) => {
+    if (isPrivate && !privateUnlocked.has(marketId)) return
     setSelections(prev => {
       const same = prev[marketId] === side
       const next = { ...prev }
@@ -251,8 +423,8 @@ export default function PredictionMarket() {
         next[marketId] = side
         setBasket(b => {
           const ex = b.find(r => r.id === marketId)
-          if (ex) return b.map(r => r.id === marketId ? { ...r, side } : r)
-          return [...b, { id: marketId, title, side }]
+          if (ex) return b.map(r => (r.id === marketId ? { ...r, side, isPrivate } : r))
+          return [...b, { id: marketId, title, side, isPrivate }]
         })
       }
       return next
@@ -269,39 +441,95 @@ export default function PredictionMarket() {
   const submit = () => {
     if (!basket.length || !walletAddress) return
     setListening(true); setDone(false); setNotice('')
-    setTimeout(() => {
-      const pts   = Math.max(1, Number(stakeInput) || 1)
-      const batch = applyPredictionBatch(walletAddress, pts, basket.length)
-      if (!batch.ok) { setListening(false); setNotice(batch.reason); setNoticeOk(false); return }
-      setListening(false); setDone(true)
-      const base = Date.now()
-      const entries = basket.map((row, i) => ({
-        id: `${base}-${i}-${Math.random().toString(16).slice(2, 10)}`,
-        wallet: walletAddress,
-        marketId: row.id,
-        marketTitle: row.title,
-        side: row.side,
-        points: pts,
-        createdAt: new Date().toISOString(),
-      }))
-      const next = [...entries, ...history]
-      localStorage.setItem(PREDICTIONS_KEY, JSON.stringify(next))
-      setHistory(next)
-      setWalletPts(batch.account.balance)
-      for (const e of entries) {
-        recordPrediction({
-          id: e.id,
-          wallet: e.wallet,
-          marketId: e.marketId,
-          marketTitle: e.marketTitle,
-          side: e.side,
-          points: e.points,
-        })
+
+    const ptsPublic = Math.max(1, Number(stakeInput) || 1)
+    const privateRows = basket.filter((r) => r.isPrivate)
+    const publicRows = basket.filter((r) => !r.isPrivate)
+    const perPrivate = Math.max(PRIVATE_MARKET_MIN_STAKE, ptsPublic)
+    const totalNeed = privateRows.length * perPrivate + publicRows.length * ptsPublic
+    const acc0 = getWalletAccount(walletAddress) || ensureWalletBonus(walletAddress)
+    if (!acc0 || acc0.balance < totalNeed) {
+      setListening(false)
+      setNotice('Insufficient points for this basket.')
+      setNoticeOk(false)
+      return
+    }
+
+    for (const row of privateRows) {
+      if (!privateUnlocked.has(row.id)) {
+        setListening(false)
+        setNotice('Enter each private room’s invite code before betting.')
+        setNoticeOk(false)
+        return
       }
+    }
+
+    setTimeout(() => {
+      for (const row of privateRows) {
+        const amt = Math.max(PRIVATE_MARKET_MIN_STAKE, ptsPublic)
+        const res = stakePrivateMarket(walletAddress, row.id, row.side, amt)
+        if (!res.ok) {
+          setListening(false)
+          setNotice(res.reason || 'Private stake failed.')
+          setNoticeOk(false)
+          return
+        }
+      }
+
+      if (publicRows.length) {
+        const batch = applyPredictionBatch(walletAddress, ptsPublic, publicRows.length)
+        if (!batch.ok) {
+          setListening(false)
+          setNotice(batch.reason)
+          setNoticeOk(false)
+          return
+        }
+        setWalletPts(batch.account.balance)
+        const base = Date.now()
+        const entries = publicRows.map((row, i) => ({
+          id: `${base}-${i}-${Math.random().toString(16).slice(2, 10)}`,
+          wallet: walletAddress,
+          marketId: row.id,
+          marketTitle: row.title,
+          side: row.side,
+          points: ptsPublic,
+          createdAt: new Date().toISOString(),
+        }))
+        const next = [...entries, ...history]
+        localStorage.setItem(PREDICTIONS_KEY, JSON.stringify(next))
+        setHistory(next)
+        for (const e of entries) {
+          recordPrediction({
+            id: e.id,
+            wallet: e.wallet,
+            marketId: e.marketId,
+            marketTitle: e.marketTitle,
+            side: e.side,
+            points: e.points,
+          })
+        }
+      } else {
+        const acc = getWalletAccount(walletAddress) || ensureWalletBonus(walletAddress)
+        if (acc) setWalletPts(Number(acc.balance) || BONUS_POINTS)
+      }
+
+      setListening(false)
+      setDone(true)
+
+      const stakedPts = privateRows.length * perPrivate + publicRows.length * ptsPublic
+      const bits = []
+      if (privateRows.length) bits.push(`${privateRows.length} private`)
+      if (publicRows.length) bits.push(`${publicRows.length} public`)
       setNotice(
-        `${basket.length} prediction${basket.length > 1 ? 's' : ''} placed · −${batch.totalStake} pts staked`,
+        `${bits.join(' · ')} prediction${basket.length > 1 ? 's' : ''} placed · −${stakedPts} pts staked`,
       )
       setNoticeOk(true)
+
+      if (feedSource === 'private') {
+        void hydratePrivateMarkets().then(() => {
+          setMarkets(listOpenPrivateMarketsPublic().map(privateMarketToFeedRow))
+        })
+      }
     }, 1800)
   }
 
@@ -313,8 +541,14 @@ export default function PredictionMarket() {
     : null
   const payout = implied ? Number(stakeInput || 0) / (implied / 100) : 0
 
+  const marketGridTemplate =
+    feedSource === 'private'
+      ? 'minmax(0, 1fr) 88px 96px minmax(176px, 240px)'
+      : '1fr 100px 110px 168px'
+
   return (
     <main
+      id="main-content"
       className="relative overflow-hidden antialiased"
       style={{
         boxSizing: 'border-box',
@@ -381,12 +615,15 @@ export default function PredictionMarket() {
               </div>
 
               <select
-                defaultValue="manifold"
+                value={feedSource}
+                onChange={(e) => setFeedSource(e.target.value)}
+                aria-label="Market feed source"
                 className="h-7 appearance-none rounded-lg px-2 pr-5 text-[12px] outline-none"
                 style={{ background:'var(--input-bg)', border:'1px solid var(--border-g)', color:'var(--text-body)' }}
               >
                 <option value="manifold">Manifold</option>
                 <option value="kalshi">Kalshi</option>
+                <option value="private">Private</option>
               </select>
 
               <select
@@ -445,14 +682,14 @@ export default function PredictionMarket() {
               className="market-scroll min-h-0 min-w-0 flex-1 overflow-auto"
               style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border-g) transparent' }}
             >
-              <div className="min-w-[640px]">
+              <div className={feedSource === 'private' ? 'min-w-[720px]' : 'min-w-[640px]'}>
             <div
               className="grid shrink-0 border-b px-5 py-2 text-[10px] font-black uppercase tracking-[0.15em]"
               style={{
                 background: 'var(--panel-bg)',
                 borderColor: 'var(--border-subtle)',
                 color: 'var(--text-muted)',
-                gridTemplateColumns: '1fr 100px 110px 168px',
+                gridTemplateColumns: marketGridTemplate,
               }}
             >
               <span>Question</span>
@@ -468,7 +705,7 @@ export default function PredictionMarket() {
                     <div
                       key={i}
                       className="grid items-center border-b px-5 py-3"
-                      style={{ borderColor:'var(--border-row)', gridTemplateColumns:'1fr 100px 110px 168px' }}
+                      style={{ borderColor:'var(--border-row)', gridTemplateColumns: marketGridTemplate }}
                     >
                       <div className="flex items-center gap-3 pr-4">
                         <div
@@ -490,7 +727,13 @@ export default function PredictionMarket() {
                     </div>
                   ))
                 : filteredRows.length === 0
-                  ? <p className="px-5 py-10 text-sm" style={{ color:'var(--text-muted)' }}>No markets match your filters.</p>
+                  ? (
+                    <p className="px-5 py-10 text-sm" style={{ color:'var(--text-muted)' }}>
+                      {feedSource === 'private'
+                        ? 'No open private rooms yet. Create one under Private (syncs to the server) or join with an invite code.'
+                        : 'No markets match your filters.'}
+                    </p>
+                  )
                   : filteredRows.map(m => {
                       const sel = selections[m.id]
                       return (
@@ -503,7 +746,7 @@ export default function PredictionMarket() {
                           }`}
                           style={{
                             borderColor: 'var(--border-row)',
-                            gridTemplateColumns: '1fr 100px 110px 168px',
+                            gridTemplateColumns: marketGridTemplate,
                             ...(sel ? { background: 'var(--accent-surface)' } : {}),
                           }}
                         >
@@ -539,60 +782,129 @@ export default function PredictionMarket() {
                           </span>
 
                           {/* Ends */}
-                          {m.endsSoon
+                          {m.closeDate !== '—' && m.endsSoon
                             ? <span
                                 className="netlifypixel text-[10px] font-black uppercase tracking-wide"
                                 style={{ color:'var(--accent-text)', textShadow:'var(--glow-forecast)' }}
                               >
                                 ENDS SOON
                               </span>
-                            : <span className="text-[12px] tabular-nums" style={{ color:'var(--text-muted)' }}>
-                                {m.closeDate.slice(5)}
-                              </span>
+                            : m.closeDate !== '—'
+                              ? <span className="text-[12px] tabular-nums" style={{ color:'var(--text-muted)' }}>
+                                  {m.closeDate.slice(5)}
+                                </span>
+                              : <span className="text-[12px] tabular-nums" style={{ color:'var(--text-muted)' }}>—</span>
                           }
 
-                          {/* YES / NO — same 3-layer 3D button as commingsoon */}
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => pick(m.id, 'YES', m.title)}
-                              className="group relative h-7 w-[52px] shrink-0 cursor-pointer border-none bg-transparent p-0 text-[10px] font-black"
-                            >
-                              <span className="absolute inset-0 translate-y-[2px] rounded bg-[#0a7a12] transition-transform duration-200 ease-out group-hover:translate-y-[3px] group-active:translate-y-px" />
-                              <span className="absolute inset-0 rounded bg-[#0da91f]" />
-                              <span
-                                className="relative flex h-full -translate-y-[2px] items-center justify-center rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px"
-                                style={{ background: sel === 'YES' ? '#13f227' : 'var(--yes-inactive)', color: '#08240e' }}
+                          {/* YES / NO — private feed requires room code first */}
+                          <div className="flex min-w-0 flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-1.5">
+                            {m.source === 'private' && !privateUnlocked.has(m.id) ? (
+                              <form
+                                className="flex w-full min-w-[140px] flex-col gap-1"
+                                onSubmit={(e) => {
+                                  e.preventDefault()
+                                  void tryUnlockPrivateOnMarket(m)
+                                }}
                               >
-                                YES
-                              </span>
-                            </button>
+                                <input
+                                  aria-label={`Invite code for ${m.title}`}
+                                  type="text"
+                                  className="h-7 w-full rounded border px-2 font-mono text-[10px] uppercase tracking-wider outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                                  style={{
+                                    borderColor: 'var(--border-g)',
+                                    background: 'var(--input-bg)',
+                                    color: 'var(--text-heading)',
+                                  }}
+                                  placeholder="Room code"
+                                  value={privateCodeDraft[m.id] ?? ''}
+                                  maxLength={PRIVATE_ACCESS_CODE_MAX}
+                                  autoComplete="off"
+                                  onChange={(e) => {
+                                    const v = e.target.value
+                                      .toUpperCase()
+                                      .replace(/[^A-Z0-9]/g, '')
+                                    setPrivateCodeDraft((d) => ({ ...d, [m.id]: v }))
+                                    setPrivateUnlockErr((err) => {
+                                      const { [m.id]: _, ...rest } = err
+                                      return rest
+                                    })
+                                  }}
+                                />
+                                <button
+                                  type="submit"
+                                  className="h-7 shrink-0 rounded border px-2 text-[10px] font-bold"
+                                  style={{
+                                    borderColor: 'var(--border-g2)',
+                                    background: 'var(--bg-glass)',
+                                    color: 'var(--text-heading)',
+                                  }}
+                                >
+                                  Unlock betting
+                                </button>
+                                {privateUnlockErr[m.id] ? (
+                                  <span className="text-[9px] leading-tight" style={{ color: '#f87171' }}>
+                                    {privateUnlockErr[m.id]}
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] leading-tight" style={{ color: 'var(--text-muted)' }}>
+                                    Use the host invite code to unlock YES / NO.
+                                  </span>
+                                )}
+                              </form>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => pick(m.id, 'YES', m.title, m.source === 'private')}
+                                  className="group relative h-7 w-[52px] shrink-0 cursor-pointer border-none bg-transparent p-0 text-[10px] font-black"
+                                >
+                                  <span className="absolute inset-0 translate-y-[2px] rounded bg-[#0a7a12] transition-transform duration-200 ease-out group-hover:translate-y-[3px] group-active:translate-y-px" />
+                                  <span className="absolute inset-0 rounded bg-[#0da91f]" />
+                                  <span
+                                    className="relative flex h-full -translate-y-[2px] items-center justify-center rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px"
+                                    style={{ background: sel === 'YES' ? '#13f227' : 'var(--yes-inactive)', color: '#08240e' }}
+                                  >
+                                    YES
+                                  </span>
+                                </button>
 
-                            <button
-                              type="button"
-                              onClick={() => pick(m.id, 'NO', m.title)}
-                              className="group relative h-7 w-[52px] shrink-0 cursor-pointer border-none bg-transparent p-0 text-[10px] font-black"
-                            >
-                              <span className="absolute inset-0 translate-y-[2px] rounded bg-[#7a0a0a] transition-transform duration-200 ease-out group-hover:translate-y-[3px] group-active:translate-y-px" />
-                              <span className="absolute inset-0 rounded bg-[#b91c1c]" />
-                              <span
-                                className="relative flex h-full -translate-y-[2px] items-center justify-center rounded text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px"
-                                style={{ background: sel === 'NO' ? '#ef4444' : 'rgba(239,68,68,0.5)' }}
-                              >
-                                NO
-                              </span>
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={() => pick(m.id, 'NO', m.title, m.source === 'private')}
+                                  className="group relative h-7 w-[52px] shrink-0 cursor-pointer border-none bg-transparent p-0 text-[10px] font-black"
+                                >
+                                  <span className="absolute inset-0 translate-y-[2px] rounded bg-[#7a0a0a] transition-transform duration-200 ease-out group-hover:translate-y-[3px] group-active:translate-y-px" />
+                                  <span className="absolute inset-0 rounded bg-[#b91c1c]" />
+                                  <span
+                                    className="relative flex h-full -translate-y-[2px] items-center justify-center rounded text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px"
+                                    style={{ background: sel === 'NO' ? '#ef4444' : 'rgba(239,68,68,0.5)' }}
+                                  >
+                                    NO
+                                  </span>
+                                </button>
 
-                            {m.source === 'manifold' && m.slug && (
-                              <a
-                                href={`https://manifold.markets/${m.slug}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-0.5 text-[10px] transition hover:opacity-80"
-                                style={{ color: 'var(--accent-faint)' }}
-                              >
-                                ↗
-                              </a>
+                                {m.source === 'manifold' && m.slug && (
+                                  <a
+                                    href={`https://manifold.markets/${m.slug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-0.5 text-[10px] transition hover:opacity-80"
+                                    style={{ color: 'var(--accent-faint)' }}
+                                  >
+                                    ↗
+                                  </a>
+                                )}
+                                {m.source === 'private' && m.slug && (
+                                  <Link
+                                    to={{ pathname: '/private-arena', search: `?c=${encodeURIComponent(m.slug)}` }}
+                                    className="ml-0.5 text-[10px] font-semibold no-underline transition hover:opacity-80"
+                                    style={{ color: 'var(--accent-faint)' }}
+                                    title="Open private room"
+                                  >
+                                    Room
+                                  </Link>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>

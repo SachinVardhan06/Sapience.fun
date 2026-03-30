@@ -187,6 +187,65 @@ export function listWalletAccounts() {
   return Object.values(map)
 }
 
+/**
+ * Generic debit (private market seed, fees, etc.).
+ * @param {{ bumpPredictions?: boolean, bumpStaked?: boolean }} [opts]
+ */
+export function spendPoints(address, amount, opts = {}) {
+  const { bumpPredictions = false, bumpStaked = true } = opts
+  const key = normalizeAddress(address)
+  if (!key) return { ok: false, reason: 'Missing wallet address.' }
+
+  const amt = Number(amount)
+  if (!Number.isFinite(amt) || amt <= 0) return { ok: false, reason: 'Invalid amount.' }
+
+  ensureWalletBonus(key)
+  const map = readMap()
+  const current = map[key]
+  if (amt > current.balance) return { ok: false, reason: 'Insufficient points balance.' }
+
+  const next = {
+    ...current,
+    balance: current.balance - amt,
+    totalPredictions: Number(current.totalPredictions) + (bumpPredictions ? 1 : 0),
+    totalStaked: Number(current.totalStaked) + (bumpStaked ? amt : 0),
+    updatedAt: new Date().toISOString(),
+  }
+  map[key] = next
+  writeMap(map)
+  syncWallet(next)
+  notifyPointsChanged()
+  return { ok: true, account: next, spent: amt }
+}
+
+/**
+ * Generic credit (private market payouts, refunds).
+ * @param {{ bumpRewards?: boolean }} [opts]
+ */
+export function addPoints(address, amount, opts = {}) {
+  const { bumpRewards = true } = opts
+  const key = normalizeAddress(address)
+  if (!key) return { ok: false, reason: 'Missing wallet address.' }
+
+  const amt = Number(amount)
+  if (!Number.isFinite(amt) || amt <= 0) return { ok: false, reason: 'Invalid amount.' }
+
+  ensureWalletBonus(key)
+  const map = readMap()
+  const current = map[key]
+  const next = {
+    ...current,
+    balance: current.balance + amt,
+    totalRewards: Number(current.totalRewards) + (bumpRewards ? amt : 0),
+    updatedAt: new Date().toISOString(),
+  }
+  map[key] = next
+  writeMap(map)
+  syncWallet(next)
+  notifyPointsChanged()
+  return { ok: true, account: next, credited: amt }
+}
+
 /** Deduct stake for a 5m BTC pick (no instant reward — settlement pays winners). */
 export function stake5mPick(address, stake) {
   const key = normalizeAddress(address)

@@ -61,6 +61,7 @@ function TradeNavbar() {
           { to: '/', label: 'Home' },
           { to: '/prediction', label: 'Markets' },
           { to: '/btc-5m', label: 'BTC 5m' },
+          { to: '/private-arena', label: 'Private' },
           { to: '/leaderboard', label: 'Leaderboard' },
           { to: '/profile', label: 'Profile' },
         ].map(({ to, label }) => (

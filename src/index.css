@@ -1,66 +1,70 @@
 @import "tailwindcss";
 
 /* ── Theme tokens ─────────────────────────────────────────────────────────── */
+/* Dark: neutral “product” shell (Bento-style clarity) + readable green accent */
 :root, [data-theme="dark"] {
-  --bg-page:       #030b04;
-  --bg-glass:      rgba(0,0,0,0.50);
-  --bg-glass2:     rgba(0,0,0,0.55);
-  --panel-bg:      rgba(0,0,0,0.60);
-  --input-bg:      rgba(0,0,0,0.60);
-  --border-g:      rgba(19,242,39,0.15);
-  --border-g2:     rgba(19,242,39,0.18);
-  --border-subtle: rgba(19,242,39,0.12);
-  --border-row:    rgba(19,242,39,0.07);
-  --text-heading:  #f6fffa;
-  --text-body:     #d9e5df;
-  --text-secondary:rgba(255,255,255,0.45);
-  --text-muted:    rgba(255,255,255,0.28);
-  --text-faint:    rgba(255,255,255,0.18);
-  --text-dim:      rgba(255,255,255,0.35);
-  --row-hover:     rgba(255,255,255,0.025);
-  --progress-bg:   rgba(255,255,255,0.08);
-  --scanline:      rgba(255,255,255,0.08);
-  --vignette:      rgba(0,0,0,0.72);
-  --glow-radial:   rgba(19,242,39,0.09);
-  --nav-bg:        rgba(0,0,0,0.35);
-  --nav-glass-bg:  rgba(3, 14, 6, 0.28);
-  --icon-stroke:   rgba(255,255,255,0.3);
-  --fade-top:      rgba(0,0,0,0.45);
-  /* Accent (neon on dark) */
-  --accent:              #13f227;
-  --accent-text:         #13f227;
-  --accent-muted:        rgba(19,242,39,0.5);
-  --accent-label:        rgba(19,242,39,0.45);
-  --accent-faint:        rgba(19,242,39,0.35);
-  --accent-empty:        rgba(19,242,39,0.22);
-  --accent-surface:      rgba(19,242,39,0.07);
-  --accent-surface-strong:rgba(19,242,39,0.15);
-  --accent-panel:        rgba(19,242,39,0.06);
-  --accent-panel-border: rgba(19,242,39,0.18);
-  --glow-heading:        0 0 30px rgba(19,242,39,0.9), 0 0 60px rgba(19,242,39,0.5);
-  --glow-title:          0 0 18px rgba(19,242,39,0.7), 0 0 35px rgba(19,242,39,0.4);
-  --glow-small:          0 0 12px rgba(19,242,39,0.6);
-  --glow-balance:        0 0 10px rgba(19,242,39,0.6);
-  --glow-forecast:       0 0 10px rgba(19,242,39,0.6);
-  --chip-bg-top:         #171717;
-  --chip-bg-bottom:      #0c0c0c;
-  --chip-inset:          rgba(255,255,255,0.05);
-  --yes-inactive:        rgba(19,242,39,0.5);
-  --profile-banner:      linear-gradient(135deg, rgba(19,242,39,0.12) 0%, rgba(0,0,0,0) 60%);
-  --tab-active-bg:       rgba(19,242,39,0.18);
-  --btn-depth:           rgba(0,0,0,0.32);
-  --nav-elev:            0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(19, 242, 39, 0.12);
-  --nav-toggle-bg:       rgba(19,242,39,0.08);
-  --nav-toggle-fg:       rgba(255,255,255,0.55);
-  --nav-toggle-hover-bg: rgba(19,242,39,0.18);
-  --nav-toggle-hover-fg: #13f227;
+  --bg-page:       #09090b;
+  --bg-glass:      rgba(24, 24, 27, 0.75);
+  --bg-glass2:     rgba(24, 24, 27, 0.85);
+  --panel-bg:      rgba(24, 24, 27, 0.65);
+  --input-bg:      rgba(39, 39, 42, 0.9);
+  --border-g:      rgba(255, 255, 255, 0.09);
+  --border-g2:     rgba(255, 255, 255, 0.14);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-row:    rgba(255, 255, 255, 0.05);
+  --text-heading:  #fafafa;
+  --text-body:     #e4e4e7;
+  --text-secondary:#a1a1aa;
+  --text-muted:    #71717a;
+  --text-faint:    #52525b;
+  --text-dim:      #a1a1aa;
+  --row-hover:     rgba(255, 255, 255, 0.04);
+  --progress-bg:   rgba(255, 255, 255, 0.08);
+  --scanline:      rgba(255, 255, 255, 0.04);
+  --vignette:      rgba(0, 0, 0, 0.55);
+  --glow-radial:   rgba(74, 222, 128, 0.06);
+  --nav-bg:        rgba(9, 9, 11, 0.82);
+  --nav-glass-bg:  rgba(24, 24, 27, 0.65);
+  --icon-stroke:   rgba(228, 228, 231, 0.45);
+  --fade-top:      rgba(9, 9, 11, 0.92);
+  /* Accent: soft emerald (readable, not neon body text) */
+  --accent:              #4ade80;
+  --accent-text:         #86efac;
+  --accent-muted:        rgba(134, 239, 172, 0.55);
+  --accent-label:        rgba(134, 239, 172, 0.5);
+  --accent-faint:        rgba(74, 222, 128, 0.35);
+  --accent-empty:        rgba(74, 222, 128, 0.22);
+  --accent-surface:      rgba(74, 222, 128, 0.08);
+  --accent-surface-strong:rgba(74, 222, 128, 0.14);
+  --accent-panel:        rgba(74, 222, 128, 0.05);
+  --accent-panel-border: rgba(74, 222, 128, 0.22);
+  --glow-heading:        0 0 40px rgba(74, 222, 128, 0.2);
+  --glow-title:          0 0 24px rgba(74, 222, 128, 0.15);
+  --glow-small:          0 0 12px rgba(74, 222, 128, 0.25);
+  --glow-balance:        none;
+  --glow-forecast:       none;
+  --chip-bg-top:         #27272a;
+  --chip-bg-bottom:      #18181b;
+  --chip-inset:          rgba(255, 255, 255, 0.06);
+  --yes-inactive:        rgba(74, 222, 128, 0.45);
+  --profile-banner:      linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(0, 0, 0, 0) 58%);
+  --tab-active-bg:       rgba(74, 222, 128, 0.12);
+  --btn-depth:           rgba(0, 0, 0, 0.35);
+  --nav-elev:            0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --nav-toggle-bg:       rgba(255, 255, 255, 0.06);
+  --nav-toggle-fg:       #a1a1aa;
+  --nav-toggle-hover-bg: rgba(74, 222, 128, 0.12);
+  --nav-toggle-hover-fg: #86efac;
+  /* Focus ring (accessibility) */
+  --focus-ring:          rgba(129, 140, 248, 0.55);
+  --focus-ring-offset:   #09090b;
   /* Beta banner */
-  --beta-banner-bg:          rgba(19, 242, 39, 0.12);
-  --beta-banner-border:      rgba(19, 242, 39, 0.35);
+  --beta-banner-bg:          rgba(39, 39, 42, 0.92);
+  --beta-banner-border:      rgba(255, 255, 255, 0.1);
   --beta-banner-text:        var(--text-body);
-  --beta-banner-chip-bg:     rgba(19, 242, 39, 0.22);
+  --beta-banner-chip-bg:     rgba(74, 222, 128, 0.15);
   --beta-banner-chip-text:   var(--accent-text);
-  --beta-banner-chip-border: rgba(19, 242, 39, 0.45);
+  --beta-banner-chip-border: rgba(74, 222, 128, 0.35);
 }
 
 [data-theme="dark"] {
@@ -69,8 +73,8 @@
 
 [data-theme="light"] {
   color-scheme: light;
-  /* Cool mint paper — high contrast, easy to read */
-  --bg-page:       #e4ede6;
+  /* Clean paper — high contrast, easy to read */
+  --bg-page:       #fafafa;
   --bg-glass:      #ffffff;
   --bg-glass2:     #ffffff;
   --panel-bg:      #f8faf9;
@@ -122,11 +126,13 @@
   --nav-toggle-fg:       rgba(30, 61, 42, 0.65);
   --nav-toggle-hover-bg: rgba(22, 101, 52, 0.18);
   --nav-toggle-hover-fg: #166534;
+  --focus-ring:          rgba(22, 101, 52, 0.45);
+  --focus-ring-offset:   #fafafa;
   /* Beta banner (light) */
-  --beta-banner-bg:          rgba(22, 101, 52, 0.1);
-  --beta-banner-border:      rgba(22, 101, 52, 0.22);
+  --beta-banner-bg:          rgba(240, 253, 244, 0.95);
+  --beta-banner-border:      rgba(22, 101, 52, 0.18);
   --beta-banner-text:        var(--text-body);
-  --beta-banner-chip-bg:     rgba(22, 101, 52, 0.14);
+  --beta-banner-chip-bg:     rgba(22, 101, 52, 0.12);
   --beta-banner-chip-text:   var(--accent-text);
   --beta-banner-chip-border: rgba(22, 101, 52, 0.28);
 }
@@ -147,6 +153,45 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Keyboard focus — visible rings without cluttering mouse clicks */
+*:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.skip-to-main {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  z-index: 3000;
+}
+
+.skip-to-main:focus {
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  top: calc(var(--beta-banner-height) + 0.35rem);
+  left: 0.75rem;
+  clip: auto;
+  overflow: visible;
+  white-space: normal;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--bg-glass2);
+  color: var(--text-heading);
+  border: 1px solid var(--border-g2);
+  box-shadow: var(--nav-elev);
 }
 
 html,

@@ -23,11 +23,15 @@ const GQL_URL = normalizeGqlHttpUrl(
     : DEFAULT_GQL_URL_PROD,
 )
 
-async function gql(query, variables = {}) {
+async function gql(query, variables) {
+  const payload =
+    variables != null && Object.keys(variables).length > 0
+      ? { query, variables }
+      : { query }
   const res = await fetch(GQL_URL, {
     method : 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body   : JSON.stringify({ query, variables }),
+    body   : JSON.stringify(payload),
   })
   const json = await res.json()
   if (json.errors?.length) throw new Error(json.errors[0].message)
@@ -65,6 +69,35 @@ export async function fetchPredictions(wallet = null, limit = null) {
   return data.predictions
 }
 
+export async function fetchPrivateMarkets() {
+  const data = await gql(`
+    query PrivateMarketsList {
+      privateMarkets {
+        id code creator title description seedPoints createdAt updatedAt closesAt status outcome resolvedAt
+        inviteCodeRequired
+        stakes { id wallet side points createdAt }
+      }
+    }
+  `)
+  return data.privateMarkets || []
+}
+
+export async function fetchPrivateMarketByCode(code) {
+  const data = await gql(
+    `
+    query PrivateByCode($code: String!) {
+      privateMarketByCode(code: $code) {
+        id code creator title description seedPoints createdAt updatedAt closesAt status outcome resolvedAt
+        inviteCodeRequired
+        stakes { id wallet side points createdAt }
+      }
+    }
+  `,
+    { code },
+  )
+  return data.privateMarketByCode
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function upsertWallet({ address, balance, totalPredictions, totalStaked, totalRewards }) {
@@ -92,4 +125,72 @@ export async function savePrediction({ id, wallet, marketId, marketTitle, side, 
     }
   `, { id, wallet, marketId, marketTitle, side, points })
   return data.savePrediction
+}
+
+/** Full private market document — same shape as local storage row. */
+export async function syncPrivateMarket(market) {
+  const stakes = (market.stakes || []).map((s) => ({
+    id: s.id,
+    wallet: s.wallet,
+    side: s.side,
+    points: Number(s.points),
+    createdAt: s.createdAt,
+  }))
+  const data = await gql(
+    `
+    mutation SyncPrivateMarket(
+      $id: ID!
+      $code: String!
+      $creator: String!
+      $title: String!
+      $description: String!
+      $seedPoints: Int!
+      $createdAt: String!
+      $updatedAt: String!
+      $closesAt: String
+      $status: String!
+      $outcome: String
+      $resolvedAt: String
+      $inviteCodeRequired: Boolean
+      $stakes: [PrivateStakeInput!]!
+    ) {
+      syncPrivateMarket(
+        id: $id
+        code: $code
+        creator: $creator
+        title: $title
+        description: $description
+        seedPoints: $seedPoints
+        createdAt: $createdAt
+        updatedAt: $updatedAt
+        closesAt: $closesAt
+        status: $status
+        outcome: $outcome
+        resolvedAt: $resolvedAt
+        inviteCodeRequired: $inviteCodeRequired
+        stakes: $stakes
+      ) {
+        id code creator title description seedPoints createdAt updatedAt closesAt status outcome resolvedAt inviteCodeRequired
+        stakes { id wallet side points createdAt }
+      }
+    }
+  `,
+    {
+      id: market.id,
+      code: String(market.code || '').toUpperCase(),
+      creator: String(market.creator || '').toLowerCase(),
+      title: market.title || '',
+      description: market.description || '',
+      seedPoints: Number(market.seedPoints) || 0,
+      createdAt: market.createdAt,
+      updatedAt: market.updatedAt || market.createdAt,
+      closesAt: market.closesAt || null,
+      status: market.status || 'open',
+      outcome: market.outcome || null,
+      resolvedAt: market.resolvedAt || null,
+      inviteCodeRequired: market.inviteCodeRequired === true,
+      stakes,
+    },
+  )
+  return data.syncPrivateMarket
 }
