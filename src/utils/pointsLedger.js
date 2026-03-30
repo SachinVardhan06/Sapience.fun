@@ -246,6 +246,36 @@ export function addPoints(address, amount, opts = {}) {
   return { ok: true, account: next, credited: amt }
 }
 
+/**
+ * Credit balance after cancelling a private debit (delete room / refund).
+ * Lowers totalStaked / totalPredictions to mirror the original spendPoints / stake.
+ */
+export function refundSpend(address, amount, opts = {}) {
+  const reduceStaked = Number(opts.reduceStaked) || 0
+  const reducePredictions = Number(opts.reducePredictions) || 0
+  const key = normalizeAddress(address)
+  if (!key) return { ok: false, reason: 'Missing wallet address.' }
+
+  const amt = Number(amount)
+  if (!Number.isFinite(amt) || amt <= 0) return { ok: false, reason: 'Invalid amount.' }
+
+  ensureWalletBonus(key)
+  const map = readMap()
+  const current = map[key]
+  const next = {
+    ...current,
+    balance: Number(current.balance) + amt,
+    totalStaked: Math.max(0, Number(current.totalStaked) - reduceStaked),
+    totalPredictions: Math.max(0, Number(current.totalPredictions) - reducePredictions),
+    updatedAt: new Date().toISOString(),
+  }
+  map[key] = next
+  writeMap(map)
+  syncWallet(next)
+  notifyPointsChanged()
+  return { ok: true, account: next, credited: amt }
+}
+
 /** Deduct stake for a 5m BTC pick (no instant reward — settlement pays winners). */
 export function stake5mPick(address, stake) {
   const key = normalizeAddress(address)

@@ -14,6 +14,7 @@ import {
   mergeWalletRecords,
   recordPrediction,
 } from '../../utils/pointsLedger'
+import { triggerBetSprinkle } from '../../utils/betSprinkle'
 import {
   PRIVATE_ACCESS_CODE_MAX,
   PRIVATE_ACCESS_CODE_MIN,
@@ -515,6 +516,7 @@ export default function PredictionMarket() {
 
       setListening(false)
       setDone(true)
+      triggerBetSprinkle()
 
       const stakedPts = privateRows.length * perPrivate + publicRows.length * ptsPublic
       const bits = []

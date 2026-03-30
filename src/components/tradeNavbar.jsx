@@ -1,7 +1,14 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useWalletAuth } from '../context/walletAuth'
 import { useTheme } from '../context/themeContext'
 import { useWalletBalance } from '../hooks/useWalletBalance'
+import ZeroPointsRequestModal, {
+  clearZeroPointsSnooze,
+  isZeroPointsModalSnoozed,
+} from './ZeroPointsRequestModal.jsx'
+
+const ZERO_REQ_PENDING_KEY = 'sapience_zero_pts_req_pending'
 
 function SunIcon() {
   return (
@@ -32,6 +39,64 @@ function TradeNavbar() {
   const { isConnected, walletAddress, walletShort, switchWallet, disconnectWallet } = useWalletAuth()
   const { isDark, toggle } = useTheme()
   const walletPts = useWalletBalance(isConnected ? walletAddress : '')
+  const [showZeroModal, setShowZeroModal] = useState(false)
+  const [reqPendingUi, setReqPendingUi] = useState(false)
+
+  useEffect(() => {
+    if (walletPts > 0) {
+      clearZeroPointsSnooze()
+      setReqPendingUi(false)
+      try {
+        sessionStorage.removeItem(ZERO_REQ_PENDING_KEY)
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [walletPts])
+
+  useEffect(() => {
+    if (!isConnected) {
+      setReqPendingUi(false)
+      return
+    }
+    try {
+      setReqPendingUi(sessionStorage.getItem(ZERO_REQ_PENDING_KEY) === '1')
+    } catch {
+      setReqPendingUi(false)
+    }
+  }, [isConnected, walletPts])
+
+  useEffect(() => {
+    if (!isConnected || walletPts > 0) {
+      setShowZeroModal(false)
+      return
+    }
+    if (isZeroPointsModalSnoozed()) {
+      setShowZeroModal(false)
+      return
+    }
+    try {
+      if (sessionStorage.getItem(ZERO_REQ_PENDING_KEY) === '1') {
+        setShowZeroModal(false)
+        return
+      }
+    } catch {
+      /* ignore */
+    }
+    setShowZeroModal(true)
+  }, [isConnected, walletPts])
+
+  const closeZeroModal = () => setShowZeroModal(false)
+
+  const onZeroRequestSubmitted = () => {
+    try {
+      sessionStorage.setItem(ZERO_REQ_PENDING_KEY, '1')
+    } catch {
+      /* ignore */
+    }
+    setReqPendingUi(true)
+    setShowZeroModal(false)
+  }
 
   return (
     <nav className="relative z-20 w-full shrink-0 bg-transparent px-3 pt-2 pb-0 sm:px-6 sm:pt-3">
@@ -146,6 +211,11 @@ function TradeNavbar() {
             >
               {walletPts.toLocaleString()}
               <span className="ml-0.5 text-[11px] font-medium opacity-85 sm:text-xs">pts</span>
+              {walletPts <= 0 && reqPendingUi ? (
+                <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider opacity-80" style={{ color: 'var(--text-muted)' }}>
+                  · req sent
+                </span>
+              ) : null}
             </span>
             <span className="hidden sm:inline" style={{ color: 'var(--border-g)' }} aria-hidden>·</span>
             <button
@@ -168,6 +238,15 @@ function TradeNavbar() {
       </div>
       </div>
       </div>
+
+      {isConnected && walletAddress ? (
+        <ZeroPointsRequestModal
+          open={showZeroModal}
+          walletAddress={walletAddress}
+          onClose={closeZeroModal}
+          onSubmitted={onZeroRequestSubmitted}
+        />
+      ) : null}
     </nav>
   )
 }

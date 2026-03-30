@@ -23,6 +23,11 @@ const GQL_URL = normalizeGqlHttpUrl(
     : DEFAULT_GQL_URL_PROD,
 )
 
+/** Resolved POST URL (for support / admin troubleshooting). */
+export function getGraphqlHttpUrl() {
+  return GQL_URL
+}
+
 async function gql(query, variables) {
   const payload =
     variables != null && Object.keys(variables).length > 0
@@ -80,6 +85,76 @@ export async function fetchPrivateMarkets() {
     }
   `)
   return data.privateMarkets || []
+}
+
+export async function fetchPointRequests(adminPasscode, status = null) {
+  const data = await gql(
+    `
+    query PointRequests($adminPasscode: String!, $status: String) {
+      pointRequests(adminPasscode: $adminPasscode, status: $status) {
+        id wallet message status createdAt updatedAt grantedPoints
+      }
+    }
+  `,
+    { adminPasscode, status },
+  )
+  return data.pointRequests || []
+}
+
+export async function submitPointRequest({ wallet, message = '' }) {
+  const data = await gql(
+    `
+    mutation SubmitPointRequest($wallet: String!, $message: String) {
+      submitPointRequest(wallet: $wallet, message: $message) {
+        id wallet message status createdAt updatedAt grantedPoints
+      }
+    }
+  `,
+    { wallet, message },
+  )
+  return data.submitPointRequest
+}
+
+export async function fulfillPointRequest(adminPasscode, id, points) {
+  const data = await gql(
+    `
+    mutation FulfillPointRequest($adminPasscode: String!, $id: ID!, $points: Int!) {
+      fulfillPointRequest(adminPasscode: $adminPasscode, id: $id, points: $points) {
+        id wallet message status createdAt updatedAt grantedPoints
+      }
+    }
+  `,
+    { adminPasscode, id, points },
+  )
+  return data.fulfillPointRequest
+}
+
+export async function dismissPointRequest(adminPasscode, id) {
+  const data = await gql(
+    `
+    mutation DismissPointRequest($adminPasscode: String!, $id: ID!) {
+      dismissPointRequest(adminPasscode: $adminPasscode, id: $id) {
+        id wallet message status createdAt updatedAt grantedPoints
+      }
+    }
+  `,
+    { adminPasscode, id },
+  )
+  return data.dismissPointRequest
+}
+
+export async function adminCreditWallet(adminPasscode, address, amount) {
+  const data = await gql(
+    `
+    mutation AdminCreditWallet($adminPasscode: String!, $address: String!, $amount: Int!) {
+      adminCreditWallet(adminPasscode: $adminPasscode, address: $address, amount: $amount) {
+        address balance totalPredictions totalStaked totalRewards createdAt updatedAt
+      }
+    }
+  `,
+    { adminPasscode, address, amount },
+  )
+  return data.adminCreditWallet
 }
 
 export async function fetchPrivateMarketByCode(code) {
@@ -193,4 +268,20 @@ export async function syncPrivateMarket(market) {
     },
   )
   return data.syncPrivateMarket
+}
+
+/** Creator-only; server returns true if absent (idempotent) or deleted. */
+export async function deletePrivateMarketOnServer(id, creator) {
+  const data = await gql(
+    `
+    mutation DeletePrivateMarket($id: ID!, $creator: String!) {
+      deletePrivateMarket(id: $id, creator: $creator)
+    }
+  `,
+    {
+      id: String(id),
+      creator: String(creator || '').toLowerCase(),
+    },
+  )
+  return Boolean(data.deletePrivateMarket)
 }

@@ -17,9 +17,11 @@ import Btc5MinMarket from './pages/buy/5minmarket.jsx'
 import LeaderboardPage from './pages/leaderboard/leaderboard.jsx'
 import ProfilePage from './pages/profile/profile.jsx'
 import PrivateArena from './pages/private/PrivateArena.jsx'
+import AdminPanel from './pages/admin/AdminPanel.jsx'
 import { WalletAuthProvider, useWalletAuth } from './context/walletAuth.jsx'
 import { ThemeProvider } from './context/themeContext.jsx'
 import BetaBanner from './components/BetaBanner.jsx'
+import BetSprinkleLayer from './components/BetSprinkleLayer.jsx'
 
 function ProtectedRoute({ children }) {
   const { isConnected, isAuthReady } = useWalletAuth()
@@ -53,6 +55,7 @@ createRoot(document.getElementById('root')).render(
     <WalletAuthProvider>
       <BrowserRouter>
         <BetaBanner />
+        <BetSprinkleLayer />
         <a href="#main-content" className="skip-to-main">
           Skip to main content
         </a>
@@ -100,6 +103,7 @@ createRoot(document.getElementById('root')).render(
             }
           />
           <Route path="/" element={<HomePage />} />
+          <Route path="/admin" element={<AdminPanel />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

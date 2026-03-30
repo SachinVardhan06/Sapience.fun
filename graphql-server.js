@@ -26,8 +26,29 @@ import cors from 'cors'
 import finalhandler from 'finalhandler'
 import http from 'http'
 import { createServer as createNetServer } from 'net'
-import { parse as urlParse } from 'url'
-import { createPersistence } from './graphql-persist.mjs'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath, parse as urlParse } from 'url'
+import { createPersistence, WALLET_START_PTS } from './graphql-persist.mjs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/** Load `.env.local` without dotenv (same idea as kalshi-proxy.cjs). Does not override existing env. */
+function loadEnvLocal() {
+  const envPath = path.join(__dirname, '.env.local')
+  if (!fs.existsSync(envPath)) return
+  const lines = fs.readFileSync(envPath, 'utf8').split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const idx = trimmed.indexOf('=')
+    if (idx === -1) continue
+    const key = trimmed.slice(0, idx).trim()
+    const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '')
+    if (!process.env[key]) process.env[key] = val
+  }
+}
+loadEnvLocal()
 
 const validCharset = /^utf-(8|((16|32)(le|be)?))$/i
 
@@ -47,6 +68,41 @@ function isGraphQLHttpPath(reqUrl) {
 const persistence = await createPersistence()
 
 const mutationsDisabled = process.env.GQL_DISABLE_MUTATIONS === 'true'
+
+function assertAdminPasscode(passcode) {
+  const expected = process.env.SAPIENCE_ADMIN_PASSCODE?.trim()
+  if (!expected) {
+    throw new Error('Admin is not configured on this API (set SAPIENCE_ADMIN_PASSCODE).')
+  }
+  if (String(passcode || '') !== expected) {
+    throw new Error('Invalid admin passcode.')
+  }
+}
+
+/** Credit points without bumping totalRewards (admin / top-up). */
+async function adminCreditWalletCore(address, amount) {
+  const key = String(address || '').trim().toLowerCase()
+  if (!key.startsWith('0x') || key.length < 10) throw new Error('Invalid wallet address.')
+  const amt = Number(amount)
+  if (!Number.isFinite(amt) || amt <= 0) throw new Error('Invalid amount.')
+  const w = await persistence.getWallet(key)
+  if (!w) {
+    return persistence.upsertWallet({
+      address: key,
+      balance: WALLET_START_PTS + amt,
+      totalPredictions: 0,
+      totalStaked: 0,
+      totalRewards: 0,
+    })
+  }
+  return persistence.upsertWallet({
+    address: key,
+    balance: w.balance + amt,
+    totalPredictions: w.totalPredictions,
+    totalStaked: w.totalStaked,
+    totalRewards: w.totalRewards,
+  })
+}
 
 /** Strip Mutation from introspection JSON so Apollo Sandbox does not list it; real mutation operations still execute. */
 const hideMutationsFromIntrospection =
@@ -128,6 +184,16 @@ const typeDefs = `#graphql
     stakes:      [PrivateStake!]!
   }
 
+  type PointRequest {
+    id:            ID!
+    wallet:        String!
+    message:       String!
+    status:        String!
+    createdAt:     String!
+    updatedAt:     String!
+    grantedPoints: Int
+  }
+
   type Query {
     "Get a single wallet by address"
     wallet(address: String!): Wallet
@@ -143,6 +209,9 @@ const typeDefs = `#graphql
 
     "Single private market by invite code"
     privateMarketByCode(code: String!): PrivateMarket
+
+    "Pending / all point top-up requests (requires SAPIENCE_ADMIN_PASSCODE)"
+    pointRequests(adminPasscode: String!, status: String): [PointRequest!]!
   }
 
   input PrivateStakeInput {
@@ -193,6 +262,21 @@ ${
       inviteCodeRequired: Boolean
       stakes:      [PrivateStakeInput!]!
     ): PrivateMarket!
+
+    "Remove a private market (creator only). Returns true if a row was deleted."
+    deletePrivateMarket(id: ID!, creator: String!): Boolean!
+
+    "User submits a top-up request when balance is depleted (shown in admin panel)"
+    submitPointRequest(wallet: String!, message: String): PointRequest!
+
+    "Grant points and mark request fulfilled"
+    fulfillPointRequest(adminPasscode: String!, id: ID!, points: Int!): PointRequest!
+
+    "Dismiss a pending request without granting points"
+    dismissPointRequest(adminPasscode: String!, id: ID!): PointRequest!
+
+    "Direct credit any wallet (admin)"
+    adminCreditWallet(adminPasscode: String!, address: String!, amount: Int!): Wallet!
   }
 `
 }
@@ -214,6 +298,10 @@ const resolvers = {
     },
     privateMarketByCode(_, { code }) {
       return persistence.getPrivateMarketByCode(code)
+    },
+    pointRequests(_, { adminPasscode, status }) {
+      assertAdminPasscode(adminPasscode)
+      return persistence.listPointRequests({ status: status || null })
     },
   },
   ...(mutationsDisabled
@@ -250,6 +338,35 @@ const resolvers = {
               inviteCodeRequired: args.inviteCodeRequired === true,
               stakes,
             })
+          },
+          deletePrivateMarket(_, args) {
+            return persistence.deletePrivateMarket({
+              id: args.id,
+              creator: String(args.creator || '').toLowerCase(),
+            })
+          },
+          submitPointRequest(_, args) {
+            return persistence.submitPointRequest({
+              wallet: args.wallet,
+              message: args.message ?? '',
+            })
+          },
+          async fulfillPointRequest(_, args) {
+            assertAdminPasscode(args.adminPasscode)
+            const pr = await persistence.getPointRequest(args.id)
+            if (!pr || pr.status !== 'pending') {
+              throw new Error('Request not found or not pending.')
+            }
+            await adminCreditWalletCore(pr.wallet, args.points)
+            return persistence.fulfillPointRequest({ id: args.id, points: args.points })
+          },
+          dismissPointRequest(_, args) {
+            assertAdminPasscode(args.adminPasscode)
+            return persistence.dismissPointRequest({ id: args.id })
+          },
+          adminCreditWallet(_, args) {
+            assertAdminPasscode(args.adminPasscode)
+            return adminCreditWalletCore(args.address, args.amount)
           },
         },
       }),

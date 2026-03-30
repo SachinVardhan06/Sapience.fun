@@ -20,6 +20,7 @@ import {
   writePicks,
   writeRounds,
 } from '../../utils/btc5mRounds'
+import { triggerBetSprinkle } from '../../utils/betSprinkle'
 import { credit5mPayout, recordPrediction, stake5mPick } from '../../utils/pointsLedger'
 
 const LOCK_MS = 15_000
@@ -503,6 +504,7 @@ export default function Btc5MinMarket() {
       text: `${side} locked · on win ~${winPts} pts (${winReturnMult.toFixed(2)}× stake) — earlier bets pay more.`,
       ok: true,
     })
+    triggerBetSprinkle()
     setBusy(false)
   }
 

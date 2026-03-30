@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import TradeNavbar from '../../components/tradeNavbar'
 import { useWalletAuth } from '../../context/walletAuth'
 import { useWalletBalance } from '../../hooks/useWalletBalance'
+import { triggerBetSprinkle } from '../../utils/betSprinkle'
 import { POINTS_CHANGED_EVENT, ensureWalletBonus } from '../../utils/pointsLedger'
 import {
   PRIVATE_ACCESS_CODE_MAX,
@@ -10,6 +11,7 @@ import {
   PRIVATE_MIN_SEED,
   PRIVATE_MIN_STAKE,
   createPrivateMarket,
+  deletePrivateMarket,
   fetchAndMergePrivateMarketByCode,
   getPrivateMarketById,
   hydratePrivateMarkets,
@@ -45,6 +47,8 @@ export default function PrivateArena() {
   const [customAccessCode, setCustomAccessCode] = useState('')
   /** false → inviteCodeRequired: room hidden from Markets; true → listed in Markets (no code needed to find). */
   const [listInMarketsPublic, setListInMarketsPublic] = useState(true)
+  /** In-app delete confirmation (replaces window.confirm). */
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
 
   const refreshMine = useCallback(() => {
     if (!walletAddress) {
@@ -168,6 +172,7 @@ export default function PrivateArena() {
       return
     }
     showMessage(`Staked ${n} pts on ${side}.`, true)
+    triggerBetSprinkle()
     setFocused(r.market)
     refreshMine()
   }
@@ -183,6 +188,54 @@ export default function PrivateArena() {
     setFocused(r.market)
     refreshMine()
   }
+
+  const clearRoomFromUrl = () => {
+    setSearchParams({})
+  }
+
+  const getMarketMetaForDelete = (marketId) => {
+    const fromFocused = focused?.id === marketId ? focused : null
+    const fromMine = mine.find((m) => m.id === marketId)
+    const fromStore = getPrivateMarketById(marketId)
+    const m = fromFocused || fromMine || fromStore
+    return {
+      title: m?.title || 'this private market',
+      code: m?.code ? String(m.code).toUpperCase() : '',
+    }
+  }
+
+  const openDeleteConfirm = (marketId) => {
+    const { title, code } = getMarketMetaForDelete(marketId)
+    setDeleteConfirm({ id: marketId, title, code })
+  }
+
+  const closeDeleteConfirm = () => setDeleteConfirm(null)
+
+  const confirmDeleteMarket = async () => {
+    if (!walletAddress || !deleteConfirm) return
+    const marketId = deleteConfirm.id
+    const r = await deletePrivateMarket(walletAddress, marketId)
+    setDeleteConfirm(null)
+    if (!r.ok) {
+      showMessage(r.reason, false)
+      return
+    }
+    showMessage('Room deleted — points refunded.', true)
+    if (focused?.id === marketId) {
+      setFocused(null)
+      clearRoomFromUrl()
+    }
+    refreshMine()
+  }
+
+  useEffect(() => {
+    if (!deleteConfirm) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') setDeleteConfirm(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [deleteConfirm])
 
   useEffect(() => {
     if (!focused?.id) return
@@ -208,9 +261,83 @@ export default function PrivateArena() {
       }}
     >
       <TradeNavbar />
+
+      {deleteConfirm ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
+          role="presentation"
+          onClick={closeDeleteConfirm}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-market-dialog-title"
+            aria-describedby="delete-market-dialog-desc"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              borderColor: 'var(--border-g2)',
+              background: 'var(--panel-bg)',
+              boxShadow: 'var(--nav-elev)',
+            }}
+          >
+            <h2
+              id="delete-market-dialog-title"
+              className="m-0 text-lg font-bold sm:text-xl"
+              style={{ color: 'var(--text-heading)' }}
+            >
+              Delete this market?
+            </h2>
+            <p
+              id="delete-market-dialog-desc"
+              className="mt-3 text-sm leading-relaxed"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Are you sure you want to delete this market? Your seed and every player stake will be refunded. This cannot be
+              undone.
+            </p>
+            {deleteConfirm.code ? (
+              <p className="mt-2 font-mono text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--accent-text)' }}>
+                Code {deleteConfirm.code}
+              </p>
+            ) : null}
+            <p className="mt-2 text-sm font-medium leading-snug" style={{ color: 'var(--text-heading)' }}>
+              {deleteConfirm.title}
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeDeleteConfirm}
+                className="rounded-xl border px-4 py-2.5 text-sm font-semibold"
+                style={{
+                  borderColor: 'var(--border-g2)',
+                  background: 'var(--bg-glass)',
+                  color: 'var(--text-heading)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteMarket()}
+                className="rounded-xl border px-4 py-2.5 text-sm font-bold"
+                style={{
+                  borderColor: 'rgba(248,113,113,0.55)',
+                  background: 'rgba(248,113,113,0.18)',
+                  color: '#fecaca',
+                }}
+              >
+                Yes, delete market
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <main
         id="main-content"
-        className="relative z-10 mx-auto w-full max-w-3xl min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
+        className="relative z-10 mx-auto w-full max-w-6xl min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
       >
         <header className="mb-8">
           <p
@@ -245,7 +372,8 @@ export default function PrivateArena() {
           </p>
         ) : null}
 
-        <div className="grid gap-6 sm:gap-8">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="min-w-0 space-y-6 sm:space-y-8 lg:col-start-1 lg:row-start-1">
           <section
             className="rounded-2xl border p-5 sm:p-6"
             style={{
@@ -435,64 +563,20 @@ export default function PrivateArena() {
                   />
                 </div>
               </div>
+              {/* Same 3D primary CTA as Markets → Place bet */}
               <button
                 type="submit"
-                className="w-full rounded-xl border-0 px-4 py-3 text-sm font-bold sm:w-auto sm:px-6 sm:text-base"
-                style={{
-                  background: 'var(--accent)',
-                  color: '#052e16',
-                }}
+                disabled={!walletAddress}
+                className="group relative mt-1 block h-[48px] w-full cursor-pointer border-none bg-transparent p-0 text-base disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Create & lock seed
-              </button>
-            </form>
-          </section>
-
-          <section
-            className="rounded-2xl border p-5 sm:p-6"
-            style={{ borderColor: 'var(--border-g)', background: 'var(--panel-bg)' }}
-            aria-labelledby="join-heading"
-          >
-            <h2 id="join-heading" className="m-0 text-lg font-bold sm:text-xl" style={{ color: 'var(--text-heading)' }}>
-              Join with a code
-            </h2>
-            <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              Rooms that are listed in Markets → Private do not need a code to find them there. For code-only rooms, enter
-              the host&apos;s code or open their invite link.
-            </p>
-            <form
-              className="mt-4 flex flex-col gap-3 sm:flex-row"
-              onSubmit={(e) => {
-                e.preventDefault()
-                void handleOpenCode()
-              }}
-            >
-              <input
-                aria-label="Invite code"
-                className="min-w-0 flex-1 rounded-xl border px-3 py-2.5 font-mono text-sm uppercase tracking-widest outline-none sm:text-base"
-                style={{
-                  borderColor: 'var(--border-g)',
-                  background: 'var(--input-bg)',
-                  color: 'var(--text-heading)',
-                }}
-                placeholder="e.g. ABC123"
-                value={joinCode}
-                onChange={(e) =>
-                  setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))
-                }
-                maxLength={PRIVATE_ACCESS_CODE_MAX}
-                autoComplete="off"
-              />
-              <button
-                type="submit"
-                className="shrink-0 rounded-xl border px-5 py-2.5 text-sm font-semibold"
-                style={{
-                  borderColor: 'var(--border-g2)',
-                  background: 'var(--bg-glass)',
-                  color: 'var(--text-heading)',
-                }}
-              >
-                Open room
+                <span
+                  className="absolute left-0 top-0 h-full w-full translate-y-[2px] rounded-xl transition-transform duration-300 group-hover:translate-y-[4px] group-active:translate-y-px group-disabled:translate-y-[2px]"
+                  style={{ background: 'var(--btn-depth)' }}
+                />
+                <span className="absolute left-0 top-0 h-full w-full rounded-xl bg-[#0da91f]" />
+                <span className="relative flex h-full -translate-y-[4px] items-center justify-center rounded-xl bg-[#13f227] px-3 font-bold text-[#08240e] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform duration-300 group-hover:-translate-y-[6px] group-active:-translate-y-[2px] group-disabled:-translate-y-[4px]">
+                  Create & lock seed
+                </span>
               </button>
             </form>
           </section>
@@ -586,22 +670,31 @@ export default function PrivateArena() {
                       onChange={(e) => setStakeAmount(e.target.value)}
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleStake('YES')}
-                      className="flex-1 rounded-xl border-0 px-4 py-2.5 text-sm font-bold sm:flex-none sm:min-w-[100px]"
-                      style={{ background: 'rgba(34,197,94,0.25)', color: '#bbf7d0', border: '1px solid rgba(34,197,94,0.45)' }}
+                      className="group relative h-9 min-w-[56px] flex-1 cursor-pointer border-none bg-transparent p-0 text-[11px] font-black sm:h-10 sm:min-w-[64px] sm:text-xs"
                     >
-                      YES
+                      <span className="absolute inset-0 translate-y-[2px] rounded-lg bg-[#0a7a12] transition-transform duration-200 ease-out group-hover:translate-y-[3px] group-active:translate-y-px" />
+                      <span className="absolute inset-0 rounded-lg bg-[#0da91f]" />
+                      <span
+                        className="relative flex h-full -translate-y-[2px] items-center justify-center rounded-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px"
+                        style={{ background: '#13f227', color: '#08240e' }}
+                      >
+                        YES
+                      </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleStake('NO')}
-                      className="flex-1 rounded-xl border-0 px-4 py-2.5 text-sm font-bold sm:flex-none sm:min-w-[100px]"
-                      style={{ background: 'rgba(248,113,113,0.12)', color: '#fecaca', border: '1px solid rgba(248,113,113,0.35)' }}
+                      className="group relative h-9 min-w-[56px] flex-1 cursor-pointer border-none bg-transparent p-0 text-[11px] font-black sm:h-10 sm:min-w-[64px] sm:text-xs"
                     >
-                      NO
+                      <span className="absolute inset-0 translate-y-[2px] rounded-lg bg-[#7a0a0a] transition-transform duration-200 ease-out group-hover:translate-y-[3px] group-active:translate-y-px" />
+                      <span className="absolute inset-0 rounded-lg bg-[#b91c1c]" />
+                      <span className="relative flex h-full -translate-y-[2px] items-center justify-center rounded-lg bg-[#ef4444] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:-translate-y-px">
+                        NO
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -622,22 +715,47 @@ export default function PrivateArena() {
                     <button
                       type="button"
                       onClick={() => handleResolve('YES')}
-                      className="rounded-xl px-4 py-2 text-sm font-bold"
-                      style={{ background: 'var(--accent)', color: '#052e16' }}
+                      className="group relative h-10 min-w-[8.5rem] cursor-pointer border-none bg-transparent p-0 text-xs font-bold sm:text-sm"
                     >
-                      Resolve YES
+                      <span
+                        className="absolute inset-0 translate-y-[2px] rounded-xl transition-transform duration-200 group-hover:translate-y-[3px] group-active:translate-y-px"
+                        style={{ background: 'var(--btn-depth)' }}
+                      />
+                      <span className="absolute inset-0 rounded-xl bg-[#0da91f]" />
+                      <span className="relative flex h-full -translate-y-[2px] items-center justify-center rounded-xl bg-[#13f227] px-4 text-[#08240e] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform duration-200 group-hover:-translate-y-[3px] group-active:-translate-y-px">
+                        Resolve YES
+                      </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleResolve('NO')}
-                      className="rounded-xl border px-4 py-2 text-sm font-bold"
+                      className="group relative h-10 min-w-[8.5rem] cursor-pointer border-none bg-transparent p-0 text-xs font-bold sm:text-sm"
+                    >
+                      <span className="absolute inset-0 translate-y-[2px] rounded-xl bg-[#7a0a0a] transition-transform duration-200 group-hover:translate-y-[3px] group-active:translate-y-px" />
+                      <span className="absolute inset-0 rounded-xl bg-[#b91c1c]" />
+                      <span className="relative flex h-full -translate-y-[2px] items-center justify-center rounded-xl bg-[#ef4444] px-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-transform duration-200 group-hover:-translate-y-[3px] group-active:-translate-y-px">
+                        Resolve NO
+                      </span>
+                    </button>
+                  </div>
+                  <div className="mt-5 rounded-xl border px-4 py-3" style={{ borderColor: 'rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.06)' }}>
+                    <p className="m-0 text-xs font-bold uppercase tracking-wider" style={{ color: '#fca5a5' }}>
+                      Host — delete room
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                      Cancels the competition and refunds all points (your seed + stakes). Only works while the room is still open.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => openDeleteConfirm(focused.id)}
+                      className="mt-3 rounded-lg border px-3 py-2 text-xs font-bold"
                       style={{
-                        borderColor: 'var(--border-g2)',
-                        background: 'var(--bg-glass)',
-                        color: 'var(--text-heading)',
+                        borderColor: 'rgba(248,113,113,0.5)',
+                        background: 'rgba(248,113,113,0.12)',
+                        color: '#fecaca',
                       }}
                     >
-                      Resolve NO
+                      Delete room
                     </button>
                   </div>
                 </div>
@@ -687,41 +805,65 @@ export default function PrivateArena() {
                   No private rooms yet — create one or join with a code.
                 </li>
               ) : (
-                mine.map((m) => (
-                  <li key={m.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFocused(m)
-                        setSearchParams({ c: m.code })
-                      }}
-                      className="w-full rounded-xl border px-4 py-4 text-left transition hover:opacity-95"
-                      style={{
-                        borderColor: 'var(--border-g)',
-                        background: 'var(--bg-glass)',
-                        color: 'var(--text-body)',
-                      }}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-medium" style={{ color: 'var(--text-heading)' }}>
-                          {m.title}
-                        </span>
-                        <span className="font-mono text-xs font-bold tracking-widest" style={{ color: 'var(--accent-text)' }}>
-                          {m.code}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {m.status === 'open' ? 'Open' : `Resolved ${m.outcome}`} · pool{' '}
-                        {Number(m.seedPoints) + sumSide(m.stakes, 'YES') + sumSide(m.stakes, 'NO')} pts
-                      </p>
-                    </button>
-                  </li>
-                ))
+                mine.map((m) => {
+                  const iAmHost =
+                    walletAddress &&
+                    String(m.creator || '').toLowerCase() === String(walletAddress).toLowerCase()
+                  const canDeleteHost = iAmHost && m.status === 'open'
+                  return (
+                    <li key={m.id} className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFocused(m)
+                          setSearchParams({ c: m.code })
+                        }}
+                        className="min-w-0 flex-1 rounded-xl border px-4 py-4 text-left transition hover:opacity-95"
+                        style={{
+                          borderColor: 'var(--border-g)',
+                          background: 'var(--bg-glass)',
+                          color: 'var(--text-body)',
+                        }}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-medium" style={{ color: 'var(--text-heading)' }}>
+                            {m.title}
+                          </span>
+                          <span className="font-mono text-xs font-bold tracking-widest" style={{ color: 'var(--accent-text)' }}>
+                            {m.code}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {m.status === 'open' ? 'Open' : `Resolved ${m.outcome}`} · pool{' '}
+                          {Number(m.seedPoints) + sumSide(m.stakes, 'YES') + sumSide(m.stakes, 'NO')} pts
+                        </p>
+                      </button>
+                      {canDeleteHost ? (
+                        <button
+                          type="button"
+                          aria-label={`Delete room ${m.code}`}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            openDeleteConfirm(m.id)
+                          }}
+                          className="shrink-0 self-stretch rounded-xl border px-2.5 py-2 text-[10px] font-bold uppercase tracking-wider sm:self-center sm:px-3"
+                          style={{
+                            borderColor: 'rgba(248,113,113,0.45)',
+                            background: 'rgba(248,113,113,0.1)',
+                            color: '#fecaca',
+                          }}
+                        >
+                          Del
+                        </button>
+                      ) : null}
+                    </li>
+                  )
+                })
               )}
             </ul>
           </section>
 
-          <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-center text-xs lg:text-left" style={{ color: 'var(--text-muted)' }}>
             <Link to="/prediction" className="font-semibold underline-offset-2" style={{ color: 'var(--accent-text)' }}>
               Public markets
             </Link>
@@ -730,6 +872,62 @@ export default function PrivateArena() {
               Home
             </Link>
           </p>
+          </div>
+
+          <aside
+            className="min-w-0 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:self-start"
+            aria-labelledby="join-heading"
+          >
+            <section
+              className="rounded-2xl border p-5 sm:p-6"
+              style={{ borderColor: 'var(--border-g)', background: 'var(--panel-bg)' }}
+            >
+              <h2 id="join-heading" className="m-0 text-lg font-bold sm:text-xl" style={{ color: 'var(--text-heading)' }}>
+                Join with a code
+              </h2>
+              <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Rooms listed in Markets → Private can be found there. For code-only rooms, enter the host&apos;s code or
+                open their invite link.
+              </p>
+              <form
+                className="mt-4 flex flex-col gap-3"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void handleOpenCode()
+                }}
+              >
+                <input
+                  aria-label="Invite code"
+                  className="min-w-0 w-full rounded-xl border px-3 py-2.5 font-mono text-sm uppercase tracking-widest outline-none sm:text-base"
+                  style={{
+                    borderColor: 'var(--border-g)',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-heading)',
+                  }}
+                  placeholder="e.g. ABC123"
+                  value={joinCode}
+                  onChange={(e) =>
+                    setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))
+                  }
+                  maxLength={PRIVATE_ACCESS_CODE_MAX}
+                  autoComplete="off"
+                />
+                <button
+                  type="submit"
+                  className="group relative mt-1 block h-[48px] w-full shrink-0 cursor-pointer border-none bg-transparent p-0 text-base"
+                >
+                  <span
+                    className="absolute left-0 top-0 h-full w-full translate-y-[2px] rounded-xl transition-transform duration-300 group-hover:translate-y-[4px] group-active:translate-y-px"
+                    style={{ background: 'var(--btn-depth)' }}
+                  />
+                  <span className="absolute left-0 top-0 h-full w-full rounded-xl bg-[#0da91f]" />
+                  <span className="relative flex h-full -translate-y-[4px] items-center justify-center rounded-xl bg-[#13f227] px-3 font-bold text-[#08240e] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-transform duration-300 group-hover:-translate-y-[6px] group-active:-translate-y-[2px]">
+                    Open room
+                  </span>
+                </button>
+              </form>
+            </section>
+          </aside>
         </div>
       </main>
     </div>

@@ -559,3 +559,27 @@ textarea::placeholder {
     transform: none;
   }
 }
+
+/* Full-screen sprinkle when a bet is placed (BetSprinkleLayer — no var() in keyframes for browser support) */
+@keyframes bet-sprinkle-y {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 120vh, 0) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bet-sprinkle-root {
+    display: none !important;
+  }
+}

@@ -20,21 +20,21 @@
     },
     "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5": {
       "address": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
-      "balance": 340,
-      "totalPredictions": 7,
-      "totalStaked": 1160,
+      "balance": 865,
+      "totalPredictions": 8,
+      "totalStaked": 635,
       "totalRewards": 0,
       "createdAt": "2026-03-26T09:29:39.838Z",
-      "updatedAt": "2026-03-30T15:39:24.038Z"
+      "updatedAt": "2026-03-30T18:29:37.147Z"
     },
     "0x0729f5383b3110d57416636d3804b17550b1e1bd": {
       "address": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
-      "balance": 343,
-      "totalPredictions": 5,
-      "totalStaked": 657,
-      "totalRewards": 0,
+      "balance": 1682,
+      "totalPredictions": 0,
+      "totalStaked": 0,
+      "totalRewards": 632,
       "createdAt": "2026-03-29T04:59:10.439Z",
-      "updatedAt": "2026-03-30T15:40:13.297Z"
+      "updatedAt": "2026-03-30T18:14:00.896Z"
     }
   },
   "predictions": [
@@ -397,6 +397,33 @@
       "side": "YES",
       "points": 50,
       "createdAt": "2026-03-30T15:40:13.324Z"
+    },
+    {
+      "id": "1774895131990-0-31615848",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "2tEzuphRlP",
+      "marketTitle": "Will AI be capable of producing an Annals-quality math paper for $100k by March 2030?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-30T18:25:32.013Z"
+    },
+    {
+      "id": "btc5m-5916317-0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "btc5m-5916317",
+      "marketTitle": "BTC 5m 18:25–18:30 UTC",
+      "side": "UP",
+      "points": 25,
+      "createdAt": "2026-03-30T18:25:37.852Z"
+    },
+    {
+      "id": "1774895377128-0-430b659d",
+      "wallet": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
+      "marketId": "A319ydGB1B7f4PMOROL3",
+      "marketTitle": "In early 2028, will an AI be able to generate a full high-quality movie to a prompt?",
+      "side": "YES",
+      "points": 10,
+      "createdAt": "2026-03-30T18:29:37.154Z"
     }
   ],
   "privateMarkets": [
@@ -442,30 +469,6 @@
           "side": "NO",
           "points": 52,
           "createdAt": "2026-03-30T15:38:28.469Z"
-        }
-      ]
-    },
-    {
-      "id": "pm-1774885164032-o02n46pj",
-      "code": "G6HN2B",
-      "creator": "0x7a95fbe067a546c7fed918e7314a932eb5a69fd5",
-      "title": "alexz",
-      "description": "",
-      "seedPoints": 250,
-      "createdAt": "2026-03-30T15:39:24.032Z",
-      "updatedAt": "2026-03-30T15:40:13.275Z",
-      "closesAt": null,
-      "status": "open",
-      "outcome": null,
-      "resolvedAt": null,
-      "inviteCodeRequired": false,
-      "stakes": [
-        {
-          "id": "pm-1774885164032-o02n46pj-0x0729f5383b3110d57416636d3804b17550b1e1bd-1774885213275-dclcek",
-          "wallet": "0x0729f5383b3110d57416636d3804b17550b1e1bd",
-          "side": "YES",
-          "points": 50,
-          "createdAt": "2026-03-30T15:40:13.275Z"
         }
       ]
     }

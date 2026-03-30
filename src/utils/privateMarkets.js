@@ -1,5 +1,6 @@
-import { addPoints, recordPrediction, spendPoints } from './pointsLedger.js'
+import { addPoints, recordPrediction, refundSpend, spendPoints } from './pointsLedger.js'
 import {
+  deletePrivateMarketOnServer as gqlDeletePrivateMarket,
   fetchPrivateMarketByCode,
   fetchPrivateMarkets,
   syncPrivateMarket as gqlSyncPrivateMarket,
@@ -435,4 +436,48 @@ export function resolvePrivateMarket(creatorWallet, marketId, outcome) {
   }
   saveMarketUpdated(resolved)
   return { ok: true, market: resolved }
+}
+
+/**
+ * Host removes an open room: refunds seed + all stakes, removes from API and local storage.
+ * Server delete is idempotent (missing id still succeeds for this creator flow).
+ */
+export async function deletePrivateMarket(wallet, marketId) {
+  const key = normalizeAddress(wallet)
+  if (!key) return { ok: false, reason: 'Connect a wallet first.' }
+
+  const list = readAll()
+  const market = list.find((m) => m.id === marketId)
+  if (!market) return { ok: false, reason: 'Room not found.' }
+  if (String(market.creator || '').toLowerCase() !== key) {
+    return { ok: false, reason: 'Only the host can delete this room.' }
+  }
+  if (market.status !== 'open') {
+    return { ok: false, reason: 'Resolved rooms cannot be deleted.' }
+  }
+
+  try {
+    const ok = await gqlDeletePrivateMarket(marketId, key)
+    if (!ok) {
+      return { ok: false, reason: 'Server rejected delete (check you are signed in as the host).' }
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      reason: e instanceof Error ? e.message : 'Could not reach server — try again when online.',
+    }
+  }
+
+  const stakes = Array.isArray(market.stakes) ? market.stakes : []
+  for (const s of stakes) {
+    const p = Number(s.points) || 0
+    if (p > 0) refundSpend(s.wallet, p, { reduceStaked: p, reducePredictions: 1 })
+  }
+  const seed = Number(market.seedPoints) || 0
+  if (seed > 0) {
+    refundSpend(market.creator, seed, { reduceStaked: seed, reducePredictions: 0 })
+  }
+
+  writeAll(list.filter((m) => m.id !== marketId))
+  return { ok: true }
 }
