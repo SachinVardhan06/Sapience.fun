@@ -48,6 +48,7 @@ challenge?.querySelectorAll('button').forEach(button => {
 
 const lessonTabs = [...document.querySelectorAll('[role="tab"][data-lesson]')];
 function activateLesson(tab, focus = false) {
+  clearInterval(walkthroughTimer);
   lessonTabs.forEach(item => {
     const selected = item === tab;
     item.setAttribute('aria-selected', String(selected));
@@ -70,6 +71,147 @@ lessonTabs.forEach((tab, index) => {
   });
 });
 
+const walkthroughs = {
+  identity: [
+    ['01 / A password is reused', 'A leaked password from another site gives an attacker a possible way into the admin account.', 'EXPOSED CREDENTIAL'],
+    ['02 / Add a unique password', 'A password manager creates a different, strong password for this account.', 'UNIQUE PASSWORD'],
+    ['03 / Require a second factor', 'MFA adds another check even if the password is later exposed.', 'MFA ENABLED']
+  ],
+  attacks: [
+    ['01 / Untrusted input arrives', 'A form or URL parameter can contain data chosen by someone outside your team.', 'UNTRUSTED INPUT'],
+    ['02 / The server checks it', 'Validate the expected format and use parameterized queries before the data reaches storage.', 'SERVER VALIDATION'],
+    ['03 / The page handles it safely', 'Encode untrusted text when displaying it, and check permission for the requested action.', 'SAFE OUTPUT + ACCESS']
+  ],
+  software: [
+    ['01 / Know what is deployed', 'List your packages, services, and integrations so each component has an owner.', 'INVENTORY'],
+    ['02 / Patch with a plan', 'Track security updates, test them, then deploy them promptly.', 'UPDATED COMPONENTS'],
+    ['03 / Protect the secrets', 'Keep API keys out of public code and rotate any key that was exposed.', 'SECRETS SECURED']
+  ],
+  response: [
+    ['01 / Detect a signal', 'A sign-in alert or an unexpected change can reveal trouble early.', 'ALERT RECEIVED'],
+    ['02 / Contain the problem', 'Disable the affected account or key and preserve useful logs.', 'ACCESS CONTAINED'],
+    ['03 / Restore and learn', 'Recover from a tested backup, then update the plan using what you found.', 'SERVICE RECOVERED']
+  ]
+};
+let walkthroughTimer;
+document.querySelectorAll('.lesson-panel').forEach(panel => {
+  const key = panel.id.replace('panel-', '');
+  const steps = walkthroughs[key];
+  if (!steps) return;
+  let index = 0;
+  const lab = document.createElement('div');
+  lab.className = 'lesson-lab';
+  lab.innerHTML = '<div class="lab-heading"><span>INTERACTIVE WALKTHROUGH</span><span class="lab-counter"></span></div><div class="lab-visual"><span class="lab-node">SIGNAL</span><span class="lab-line"></span><span class="lab-state"></span></div><strong class="lab-title"></strong><p class="lab-copy"></p><div class="lab-controls"><button type="button" class="lab-prev" aria-label="Previous step">←</button><button type="button" class="lab-play">Play steps</button><button type="button" class="lab-next" aria-label="Next step">→</button></div><div class="lesson-actions"><button type="button" class="lesson-complete" aria-pressed="false">Mark lesson complete</button><button type="button" class="lesson-bookmark" aria-pressed="false">☆ Save lesson</button></div><div class="lesson-note-box"><label>Private note <textarea maxlength="2000" rows="3" placeholder="What should you remember from this lesson?"></textarea></label><button type="button" class="save-note">Save note</button><span class="note-status" role="status" aria-live="polite"></span></div>';
+  panel.append(lab);
+  const render = () => {
+    lab.querySelector('.lab-counter').textContent = `${index + 1} / ${steps.length}`;
+    lab.querySelector('.lab-state').textContent = steps[index][2];
+    lab.querySelector('.lab-title').textContent = steps[index][0];
+    lab.querySelector('.lab-copy').textContent = steps[index][1];
+    lab.querySelector('.lab-prev').disabled = index === 0;
+    lab.querySelector('.lab-next').disabled = index === steps.length - 1;
+    lab.querySelector('.lab-line').style.setProperty('--step', `${((index + 1) / steps.length) * 100}%`);
+  };
+  const stop = () => { clearInterval(walkthroughTimer); lab.querySelector('.lab-play').textContent = 'Play steps'; };
+  lab.querySelector('.lab-prev').addEventListener('click', () => { stop(); index--; render(); });
+  lab.querySelector('.lab-next').addEventListener('click', () => { stop(); index++; render(); });
+  lab.querySelector('.lab-play').addEventListener('click', () => {
+    if (lab.querySelector('.lab-play').textContent === 'Pause') return stop();
+    if (index === steps.length - 1) index = 0;
+    render();
+    lab.querySelector('.lab-play').textContent = 'Pause';
+    walkthroughTimer = setInterval(() => {
+      if (index === steps.length - 1) return stop();
+      index++;
+      render();
+    }, 1700);
+  });
+  const complete = lab.querySelector('.lesson-complete');
+  const readLessons = () => { try { return JSON.parse(localStorage.getItem('sapience-lessons-v1') || '{}') || {}; } catch { return {}; } };
+  const showComplete = value => {
+    complete.setAttribute('aria-pressed', String(value));
+    complete.textContent = value ? '✓ Lesson completed' : 'Mark lesson complete';
+    document.getElementById(`tab-${key}`)?.setAttribute('data-complete', String(value));
+  };
+  showComplete(readLessons()[key] === true);
+  complete.addEventListener('click', () => {
+    const value = complete.getAttribute('aria-pressed') !== 'true';
+    showComplete(value);
+    const updated = { ...readLessons(), [key]: value };
+    try { localStorage.setItem('sapience-lessons-v1', JSON.stringify(updated)); } catch { /* Continue without local storage. */ }
+    window.sapienceAuth?.update('lessons', key, value);
+  });
+  document.addEventListener('sapience:authready', event => { showComplete(event.detail.lessons[key] === true); });
+  const readStudy = () => { try { return JSON.parse(localStorage.getItem('sapience-study-v1') || '{}') || {}; } catch { return {}; } };
+  const bookmark = lab.querySelector('.lesson-bookmark');
+  const note = lab.querySelector('textarea');
+  const showStudy = study => {
+    const saved = study.bookmarks?.[key] === true;
+    bookmark.setAttribute('aria-pressed', String(saved));
+    bookmark.textContent = saved ? '★ Saved lesson' : '☆ Save lesson';
+    note.value = study.notes?.[key] || '';
+  };
+  showStudy(readStudy());
+  bookmark.addEventListener('click', () => {
+    const saved = bookmark.getAttribute('aria-pressed') !== 'true';
+    window.sapienceAuth?.updateStudy('bookmarks', key, saved);
+    bookmark.setAttribute('aria-pressed', String(saved));
+    bookmark.textContent = saved ? '★ Saved lesson' : '☆ Save lesson';
+  });
+  lab.querySelector('.save-note').addEventListener('click', () => {
+    window.sapienceAuth?.updateStudy('notes', key, note.value.trim());
+    lab.querySelector('.note-status').textContent = window.sapienceAuth?.user ? 'Note saved to your account.' : 'Note saved on this device.';
+  });
+  document.addEventListener('sapience:studyready', event => showStudy(event.detail));
+  render();
+});
+document.querySelectorAll('[role="tab"][data-lesson]').forEach(tab => tab.addEventListener('click', () => clearInterval(walkthroughTimer)));
+
+const quiz = document.getElementById('defender-quiz');
+if (quiz) {
+  const questions = [
+    { title: 'An admin password appears in a breach. What helps most?', options: ['Hide the login URL', 'Use a unique password and MFA', 'Change the site logo'], answer: 1 },
+    { title: 'A page displays text submitted by a visitor. What reduces XSS risk?', options: ['Encode untrusted output', 'Make the text smaller', 'Disable all logs'], answer: 0 },
+    { title: 'A teammate no longer needs admin access. What should you do?', options: ['Leave it until the next redesign', 'Share the account with someone else', 'Remove unnecessary access'], answer: 2 },
+    { title: 'How do you know a backup can help after an incident?', options: ['Check that the backup file exists', 'Test a restore', 'Keep it on the same server only'], answer: 1 }
+  ];
+  const form = document.createElement('form');
+  questions.forEach((question, index) => {
+    const fieldset = document.createElement('fieldset');
+    const legend = document.createElement('legend');
+    legend.textContent = `${String(index + 1).padStart(2, '0')} / ${question.title}`;
+    fieldset.append(legend);
+    question.options.forEach((option, choice) => {
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = `question-${index}`;
+      input.value = String(choice);
+      label.append(input, document.createTextNode(option));
+      fieldset.append(label);
+    });
+    form.append(fieldset);
+  });
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'button-primary';
+  submit.textContent = 'Check my answers ↗';
+  const result = document.createElement('p');
+  result.className = 'quiz-result';
+  result.setAttribute('role', 'status');
+  result.setAttribute('aria-live', 'polite');
+  form.append(submit, result);
+  quiz.append(form);
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const selections = questions.map((_, index) => form.querySelector(`input[name="question-${index}"]:checked`));
+    if (selections.some(value => !value)) { result.textContent = 'Answer all four questions to see your score.'; return; }
+    const score = selections.filter((value, index) => Number(value.value) === questions[index].answer).length;
+    result.textContent = `${score} / 4 correct. ${score === 4 ? 'Excellent — you spotted every safer choice.' : 'Review the lessons and try again.'}`;
+    window.sapienceAuth?.updateStudy('bestQuiz', null, score);
+  });
+}
+
 const checks = [...document.querySelectorAll('input[data-check]')];
 if (checks.length) {
   const storageKey = 'sapience-website-checklist-v1';
@@ -86,12 +228,24 @@ if (checks.length) {
     try {
       localStorage.setItem(storageKey, JSON.stringify(Object.fromEntries(checks.map(item => [item.dataset.check, item.checked]))));
     } catch { /* The checklist still works when browser storage is unavailable. */ }
+    window.sapienceAuth?.update('checklist', check.dataset.check, check.checked);
     updateProgress();
   }));
   document.getElementById('reset-checklist')?.addEventListener('click', () => {
     checks.forEach(check => { check.checked = false; });
     try { localStorage.removeItem(storageKey); } catch { /* Keep the current page usable. */ }
+    if (window.sapienceAuth?.user) window.sapienceAuth.replace('checklist', {});
     updateProgress();
+  });
+  document.addEventListener('sapience:authready', event => {
+    checks.forEach(check => { check.checked = event.detail.checklist[check.dataset.check] === true; });
+    updateProgress();
+    const note = document.querySelector('.progress-card small');
+    if (note) note.textContent = 'Synced to your account';
+  });
+  document.addEventListener('sapience:syncerror', () => {
+    const note = document.querySelector('.progress-card small');
+    if (note) note.textContent = 'Could not sync. Your changes remain on this device.';
   });
   updateProgress();
 }
