@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 const dataDir = mkdtempSync(join(tmpdir(), 'sapience-auth-test-'));
 const port = await new Promise((resolvePort, reject) => {
@@ -44,11 +45,16 @@ async function request(path, method = 'GET', body, session, requestOrigin = orig
 test('accounts authenticate and progress survives a server restart', async () => {
   try {
     await start();
+    const health = await fetch(`${origin}/healthz`);
+    assert.equal(health.status, 200);
+    assert.equal(await health.text(), 'ok');
+    assert.match(health.headers.get('content-security-policy'), /script-src 'self'/);
     const email = 'reader@example.test';
     const registered = await request('/api/register', 'POST', { name: 'Reader Test', email, password: 'A secure example passphrase 123' });
     assert.equal(registered.status, 200);
     assert.equal(registered.value.user.email, email);
     assert.match(registered.session, /^sapience_session=/);
+    assert.equal((await request('/api/register', 'POST', { name: 'Another Reader', email, password: 'Another secure passphrase 123' })).status, 409);
     assert.equal((await request('/api/progress', 'POST', { checklist: { https: true }, lessons: { identity: true } }, registered.session)).status, 200);
     assert.equal((await request('/api/study', 'POST', { bookmarks: { identity: true }, notes: { identity: 'Enable MFA.' }, bestQuiz: 3 }, registered.session)).status, 200);
     assert.equal((await request('/api/feedback', 'POST', { name: 'Reader', rating: 5, message: 'The guided steps made MFA much easier to understand.', consent: false }, registered.session)).status, 400);
@@ -59,6 +65,14 @@ test('accounts authenticate and progress survives a server restart', async () =>
     assert.equal((await request('/api/me', 'GET', undefined, registered.session)).value.user, null);
     assert.equal((await request('/api/login', 'POST', { email, password: 'wrong password' })).status, 401);
     assert.equal((await request('/api/login', 'POST', { email, password: 'A secure example passphrase 123' }, undefined, 'https://elsewhere.example')).status, 403);
+    const oversized = await request('/api/study', 'POST', { notes: { identity: 'x'.repeat(17000) } }, registered.session);
+    assert.equal(oversized.status, 413);
+    execFileSync(process.execPath, ['backup.mjs'], { cwd: resolve('.'), env: { ...process.env, DATA_DIR: dataDir } });
+    const copies = readdirSync(join(dataDir, 'backups'));
+    assert.equal(copies.length, 1);
+    const copy = new DatabaseSync(join(dataDir, 'backups', copies[0]), { readOnly: true });
+    assert.equal(copy.prepare('SELECT COUNT(*) AS total FROM users').get().total, 1);
+    copy.close();
     await stop();
     const cliEnv = { ...process.env, DATA_DIR: dataDir };
     const pending = JSON.parse(execFileSync(process.execPath, ['moderate-feedback.mjs', 'list'], { cwd: resolve('.'), env: cliEnv, encoding: 'utf8' }));
