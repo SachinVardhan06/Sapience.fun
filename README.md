@@ -6,7 +6,7 @@ The cybersecurity education website for [sapience.fun](https://sapience.fun). Th
 - `products.html` — current product catalog with direct links to each working tool
 - `privacy.html` — plain-language account, progress, feedback, and browser-storage disclosures
 - `learn.html` — four interactive beginner lessons
-- `protect.html` — a 15-step website security checklist with browser-local progress
+- `protect.html` — a 15-step website security checklist with a downloadable action plan and browser-local progress
 - `resources.html` — a searchable, filterable archive of 6,526 public research links from the supplied collection
 - `account.html` — email and password sign-up, login, and a progress dashboard
 
