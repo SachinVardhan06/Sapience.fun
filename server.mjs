@@ -1,12 +1,16 @@
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, mkdirSync } from 'node:fs';
-import { resolve, join, extname, sep } from 'node:path';
+import { resolve, join, extname, sep, isAbsolute } from 'node:path';
 import { randomBytes, createHash, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
 
 const scrypt = promisify(scryptCallback);
 const root = resolve('dist');
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction && (!process.env.DATA_DIR || !isAbsolute(process.env.DATA_DIR))) {
+  throw new Error('Production requires an absolute DATA_DIR on persistent storage.');
+}
 const dataDir = resolve(process.env.DATA_DIR || 'data');
 mkdirSync(dataDir, { recursive: true });
 const db = new DatabaseSync(join(dataDir, 'sapience.sqlite'));
@@ -17,11 +21,23 @@ db.exec(`PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS study (user_id TEXT PRIMARY KEY, bookmarks TEXT NOT NULL DEFAULT '{}', notes TEXT NOT NULL DEFAULT '{}', best_quiz INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(user_id) REFERENCES users(id));
   CREATE TABLE IF NOT EXISTS feedback (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, rating INTEGER NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, FOREIGN KEY(user_id) REFERENCES users(id));`);
 db.exec('PRAGMA foreign_keys = ON');
+db.exec('PRAGMA busy_timeout = 5000');
 
-const isProduction = process.env.NODE_ENV === 'production';
 const sessionMs = 30 * 24 * 60 * 60 * 1000;
 const attempts = new Map();
 const hash = value => createHash('sha256').update(value).digest('hex');
+const securityPolicy = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "form-action 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'"
+].join('; ');
 const json = (res, status, value) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(value));
@@ -39,23 +55,27 @@ function currentUser(req) {
 
 function issueSession(res, user) {
   const token = randomBytes(32).toString('hex');
+  db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(hash(token), user.id, Date.now() + sessionMs);
   res.setHeader('Set-Cookie', cookie(token, Math.floor(sessionMs / 1000)));
   json(res, 200, { user: cleanUser(user) });
 }
 
 async function readJson(req) {
-  let body = '';
+  const chunks = [];
+  let size = 0;
   for await (const chunk of req) {
-    body += chunk;
-    if (body.length > 16384) throw new Error('Request is too large.');
+    size += chunk.length;
+    if (size > 16384) throw Object.assign(new Error('Request is too large.'), { status: 413 });
+    chunks.push(chunk);
   }
-  try { return JSON.parse(body); } catch { throw new Error('Invalid request.'); }
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new Error('Invalid request.'); }
 }
 
 function allowAttempt(req, purpose = 'auth', limit = 30, subject = req.socket.remoteAddress || 'unknown') {
   const key = `${purpose}:${subject}`;
   const now = Date.now();
+  if (attempts.size > 10000) for (const [entry, value] of attempts) if (value.until < now) attempts.delete(entry);
   const record = attempts.get(key) || { count: 0, until: now + 15 * 60 * 1000 };
   if (now > record.until) { record.count = 0; record.until = now + 15 * 60 * 1000; }
   record.count++;
@@ -64,7 +84,10 @@ function allowAttempt(req, purpose = 'auth', limit = 30, subject = req.socket.re
 }
 
 function sameOrigin(req) {
-  try { return new URL(req.headers.origin).host === req.headers.host; } catch { return false; }
+  try {
+    const origin = new URL(req.headers.origin);
+    return origin.host === req.headers.host && (!isProduction || origin.protocol === 'https:');
+  } catch { return false; }
 }
 
 async function api(req, res, pathname) {
@@ -93,9 +116,10 @@ async function api(req, res, pathname) {
   }
   if (req.method !== 'POST') return fail(res, 405, 'Method not allowed.');
   if (!sameOrigin(req)) return fail(res, 403, 'Request origin was not accepted.');
-  if (['/api/register', '/api/login'].includes(pathname) && !allowAttempt(req)) return fail(res, 429, 'Too many attempts. Please try again later.');
+  if (['/api/register', '/api/login'].includes(pathname) && !allowAttempt(req, 'auth', 10)) return fail(res, 429, 'Too many attempts. Please try again later.');
+  if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) return fail(res, 415, 'Send JSON to this endpoint.');
   let body;
-  try { body = await readJson(req); } catch (error) { return fail(res, 400, error.message); }
+  try { body = await readJson(req); } catch (error) { return fail(res, error.status || 400, error.message); }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return fail(res, 400, 'Invalid request.');
 
   if (pathname === '/api/register') {
@@ -110,11 +134,14 @@ async function api(req, res, pathname) {
     const passwordHash = (await scrypt(password, salt, 64)).toString('hex');
     const user = { id: randomBytes(16).toString('hex'), name, email };
     try {
+      db.exec('BEGIN IMMEDIATE');
       db.prepare('INSERT INTO users (id, name, email, salt, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(user.id, name, email, salt, passwordHash, Date.now());
       db.prepare('INSERT INTO progress (user_id) VALUES (?)').run(user.id);
       db.prepare('INSERT INTO study (user_id) VALUES (?)').run(user.id);
+      db.exec('COMMIT');
     } catch (error) {
-      if (error.code === 'ERR_SQLITE_ERROR') return fail(res, 409, 'An account with this email already exists.');
+      if (db.isTransaction) db.exec('ROLLBACK');
+      if (error.message?.includes('UNIQUE constraint failed: users.email')) return fail(res, 409, 'An account with this email already exists.');
       throw error;
     }
     return issueSession(res, user);
@@ -177,8 +204,17 @@ const server = createServer(async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', securityPolicy);
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (isProduction) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
   try {
     const pathname = new URL(req.url, 'http://localhost').pathname;
+    if (pathname === '/healthz') {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return fail(res, 405, 'Method not allowed.');
+      db.prepare('SELECT 1').get();
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(req.method === 'HEAD' ? undefined : 'ok');
+    }
     if (pathname.startsWith('/api/')) return await api(req, res, pathname);
     if (req.method !== 'GET' && req.method !== 'HEAD') return fail(res, 405, 'Method not allowed.');
     const requested = pathname === '/' ? '/index.html' : pathname;
@@ -196,3 +232,7 @@ const server = createServer(async (req, res) => {
 
 const port = Number(process.env.PORT || 3000);
 server.listen(port, '0.0.0.0', () => console.log(`Sapience listening on ${port}`));
+for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+  server.close(() => db.close());
+  setTimeout(() => server.closeAllConnections(), 10000).unref();
+});

@@ -214,6 +214,54 @@ if (quiz) {
 
 const checks = [...document.querySelectorAll('input[data-check]')];
 if (checks.length) {
+  const suggestedOrder = ['unique-passwords', 'updates', 'secrets', 'authorization', 'backups', 'https', 'validation', 'output', 'least-privilege', 'remove-accounts', 'logs', 'alerts', 'inventory', 'contacts', 'plan'];
+  const orderedChecks = suggestedOrder.map(key => checks.find(check => check.dataset.check === key)).filter(Boolean);
+  const planList = document.getElementById('plan-list');
+  const planSummary = document.getElementById('plan-summary');
+  const planEmpty = document.getElementById('plan-empty');
+  const actionFor = check => ({
+    area: check.closest('.check-group').querySelector('h3').textContent.trim(),
+    action: check.closest('.check-item').querySelector('span').textContent.trim()
+  });
+  const remainingActions = () => orderedChecks.filter(check => !check.checked).map(actionFor);
+  const updateActionPlan = () => {
+    const remaining = remainingActions();
+    planSummary.textContent = `${remaining.length} of ${checks.length} to verify`;
+    planEmpty.hidden = remaining.length !== 0;
+    planList.replaceChildren(...remaining.map(({ area, action }, index) => {
+      const item = document.createElement('li');
+      const number = document.createElement('span');
+      const detail = document.createElement('div');
+      const category = document.createElement('small');
+      const title = document.createElement('strong');
+      number.textContent = String(index + 1).padStart(2, '0');
+      category.textContent = area;
+      title.textContent = action;
+      detail.append(category, title);
+      item.append(number, detail);
+      return item;
+    }));
+  };
+  document.getElementById('download-action-plan')?.addEventListener('click', () => {
+    const remaining = remainingActions();
+    const lines = [
+      'Sapience website security action plan',
+      `Generated ${new Date().toISOString().slice(0, 10)}`,
+      `${checks.length - remaining.length} of ${checks.length} checks marked complete`,
+      '',
+      'Suggested next actions (adjust for your own site):',
+      ...remaining.map(({ area, action }, index) => `${index + 1}. [${area}] ${action}`),
+      ...(remaining.length ? [] : ['All checks are marked complete. Revisit them regularly.']),
+      '',
+      'This checklist is a starting point, not a security audit.'
+    ];
+    const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sapience-action-plan-${new Date().toISOString().slice(0, 10)}.txt`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
   const storageKey = 'sapience-website-checklist-v1';
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch { saved = {}; }
@@ -223,6 +271,7 @@ if (checks.length) {
     document.getElementById('progress-count').textContent = `${complete} / ${checks.length}`;
     document.getElementById('progress-fill').style.width = `${(complete / checks.length) * 100}%`;
     document.querySelector('.progress-track').setAttribute('aria-valuenow', String(complete));
+    updateActionPlan();
   };
   checks.forEach(check => check.addEventListener('change', () => {
     try {
